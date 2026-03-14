@@ -2,6 +2,10 @@
 
 Make the initial prototype scenes/scripts for your game here.
 
+Recommended for long-term projects: keep all of your game-specific files under a single root such as `Game/MyGame/`, and keep `Game/override.cfg` at the `Game/` root.
+
+See also: `Game/Game Project Structure Guide.md`
+
 When you are ready to begin a full project,
 create a new branch for your game e.g. "game-yourgamename" within the Comedot repository,
 and organize your game's files into the existing Comedot folder structure,
