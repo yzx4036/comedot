@@ -61,6 +61,10 @@ window/subwindows/embed_subwindows=false
 window/stretch/mode="viewport"
 window/stretch/scale_mode="integer"
 
+[dotnet]
+
+project/assembly_name="Comedot"
+
 [editor]
 
 script/templates_search_path="res://Templates/Scripts"

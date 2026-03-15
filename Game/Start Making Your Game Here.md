@@ -2,7 +2,7 @@
 
 Make the initial prototype scenes/scripts for your game here.
 
-Recommended for long-term projects: keep all of your game-specific files under a single root such as `Game/MyGame/`, and keep `Game/override.cfg` at the `Game/` root.
+Recommended for long-term projects: keep all of your game-specific files under a single root such as `Game/Cd_ProjectZero/`, and keep `Game/override.cfg` at the `Game/` root.
 
 See also: `Game/Game Project Structure Guide.md`
 
