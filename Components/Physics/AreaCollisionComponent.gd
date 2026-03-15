@@ -56,16 +56,14 @@ func _ready() -> void:
 ## Subclasses may override this function to specify different conditions.
 ## ALERT: PERFORMANCE: The default implementation does NOT check [member shouldMonitorAreas] or [isEnabled]
 func shouldIncludeArea(areaToCheck: Area2D) -> bool:
-	# TBD: Use .get_parent() instead of .owner?
-	return  not (areaToCheck == parentEntity or parentEntity.is_ancestor_of(areaToCheck))
+	return not (areaToCheck == parentEntity or parentEntity.is_ancestor_of(areaToCheck))
 
 
 ## Checks if a [PhysicsBody2D] or [TileMapLayer] matches the criteria for emitting [method onCollide]/[signal didEnterBody]/[signal didExitBody] for.
 ## Subclasses may override this function to specify different conditions.
 ## ALERT: PERFORMANCE: The default implementation does NOT check [member shouldMonitorBodies] or [isEnabled]
 func shouldIncludeBody(bodyToCheck: Node2D) -> bool:
-	# TBD: Use .get_parent() instead of .owner?
-	return  not (bodyToCheck == parentEntity or parentEntity.is_ancestor_of(bodyToCheck))
+	return not (bodyToCheck == parentEntity or parentEntity.is_ancestor_of(bodyToCheck))
 
 #endregion
 
@@ -130,10 +128,11 @@ func onBodyExited(bodyExited: Node2D) -> void:
 #region Abstract Methods
 # Cannot mark as `@abstract` because they're optional, and `@abstract` functions require the class itself to also be `@abstract`, but [AreaCollisionComponent] is not abstract as it may still be used via signals.
 
+@warning_ignore_start("unused_parameter")
+
 ## Called when any [Area2D] or [PhysicsBody2D] or [TileMapLayer] comes into contact.
 ## NOTE: Called BEFORE [signal didEnterArea] or [signal didEnterBody] is emitted, to let subclasses such as [AreaContactComponent] to modify the state before signal handlers.
 ## Abstract; To be implemented by subclasses.
-@warning_ignore("unused_parameter")
 func onCollide(collidingNode: Node2D) -> void:
 	pass
 
@@ -141,7 +140,6 @@ func onCollide(collidingNode: Node2D) -> void:
 ## Called when any [Area2D] or [PhysicsBody2D] or [TileMapLayer] leaves contact.
 ## NOTE: Called BEFORE [signal didExitArea] or [signal didExitBody] is emitted, to let subclasses such as [AreaContactComponent] to modify the state before signal handlers.
 ## Abstract; To be implemented by subclasses.
-@warning_ignore("unused_parameter")
 func onExit(exitingNode: Node2D) -> void:
 	pass
 

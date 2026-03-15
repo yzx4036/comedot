@@ -4,7 +4,8 @@
 ## Examples: A [CollectibleComponent] representing an apple could have a Payload that calls the function `decreaseHunger()`.
 ## The Payload of a BFG69420 gun [Upgrade] would be a customized [GunComponent] to be instantiated and attached to the player Entity.
 ## The Payload of an [Action] representing a Fireball Spell would be the `Fireball.gd` script that may run complex code to check the terrain for flammability etc.
-## TIP: A Payload may be omitted if Signal handlers are enough e.g. [signal InteractionComponent.didPerformInteraction]
+## TIP: A Payload may be omitted if signal handlers are enough e.g. [signal InteractionComponent.didPerformInteraction]
+## or if a component performs its own effects by itself, e.g. [TextInteractionComponent]
 
 @abstract class_name Payload
 extends Resource
@@ -31,21 +32,19 @@ signal didExecute(source:  Variant, target: Variant, result: Variant)
 ## Called by other objects to execute, perform, or apply the actual effect of this Payload, such as a [CollectorComponent] picking up a [CollectibleComponent].
 ## NOTE: This method does NOT contain any actual implementation or effect; it is only the interface for other objects to call.
 ## A subclass which `extends Payload` (such as [ScriptPayload]) MUST implement the [method executeImplementation].
+## Returns: The result of the Payload.
 func execute(source: Variant, target: Variant) -> Variant:
 	# printLog(str("execute() source: ", source, " target: ", target)) # Logged by subclasses.
-	
-	var result: Variant = false
-	
-	# Let a subclass implement this.
-	result = executeImplementation(source, target)
+
+	# Let a subclass implement exactly how a Payload executes, such as ScriptPayload etc.
+	var result: Variant = executeImplementation(source, target)
 
 	# NOTE: The `willExecute` signal must be emitted by subclasses, if their requirements are met.
 	
 	if Tools.checkResult(result): # Must not be `null` and not `false` and not an empty Array or Dictionary.
 		self.didExecute.emit(source, target, result)
-		return result
-	else:
-		return false # TBD: Should we return `null`?
+
+	return result # NOTE: Return the ACTUAL result as-is, not `false` on a failure!
 
 
 ## The actual code which performs the actual action or effect of the Payload.

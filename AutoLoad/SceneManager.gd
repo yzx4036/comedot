@@ -56,6 +56,7 @@ signal didSetPause(isPaused: bool)	## TIP: May be used to modify UI such as [Pau
 ## Transitions to the specified scene with an optional animation.
 ## NOTE: Does NOT use the [member sceneStack]; see [method pushCurrentSceneAndTransition] and [method popSceneFromStack].
 func transitionToScene(nextScene: PackedScene, pauseSceneTree: bool = true, unpauseSceneTree: bool = pauseSceneTree, animate: bool = animateDefault) -> void:
+	# TBD: Should we return some value? bool or scene?
 	if not is_instance_valid(nextScene):
 		Debug.printError(str("transitionToScene(): Invalid scene: ", nextScene), logName)
 		return
@@ -68,10 +69,12 @@ func transitionToScene(nextScene: PackedScene, pauseSceneTree: bool = true, unpa
 		return
 	elif ongoingTransitionScene != null: # Log an interrupted transition in case it is or leads to a bug
 		Debug.printDebug(str("transitionToScene() called during an ongoing transition: ", nextScene, " ", nextScene.resource_path), logName)
+		# TODO: Abort previous ongoing transition to avoid "re-entrancy race" or return without starting new transition
 
 	var sceneBeforeTransition: Node = sceneTree.current_scene
 	Debug.printAutoLoadLog(str("transitionToScene(): ", sceneBeforeTransition, " → ", nextScene, " ", nextScene.resource_path))
 	
+	var previousIsPauseShortcutAllowed: bool = GlobalInput.isPauseShortcutAllowed # Store for restore on failure
 	GlobalInput.isPauseShortcutAllowed = false # Disable the Pause Overlay during transitions
 
 	# Track the scene to prevent bugs from multiple calls to transition to the same scene during animations etc.
@@ -80,14 +83,22 @@ func transitionToScene(nextScene: PackedScene, pauseSceneTree: bool = true, unpa
 	willTransitionToScene.emit(nextScene)
 
 	# Pause
+	var previousPauseState: bool = sceneTree.paused # Store for restore on failure
 	sceneTree.paused = pauseSceneTree
 	if animate: await GlobalUI.fadeInTintRect().finished # Fade the overlay in, fade the game out.
 
 	# Transition
+
 	var error: Error = sceneTree.change_scene_to_packed(nextScene)
-	if error != OK:
+	if  error != OK:
 		Debug.printError(str("transitionToScene(): ", nextScene, " failed: ", error), logName)
+		# Restore previous state on failure
+		ongoingTransitionScene = null
+		sceneTree.paused = previousPauseState
+		if animate: await GlobalUI.fadeOutTintRect().finished
+		GlobalInput.isPauseShortcutAllowed = previousIsPauseShortcutAllowed
 		return
+
 	await sceneTree.scene_changed # IMPORTANT: Because change_scene_to_packed() is async
 
 	# Repause just in case the new scene unpaused before we fade-in
@@ -104,7 +115,7 @@ func transitionToScene(nextScene: PackedScene, pauseSceneTree: bool = true, unpa
 	if Debug.shouldPrintDebugLogs: Debug.printDebug(str("SceneTree.current_scene: ", sceneTree.current_scene), logName)
 	didTransitionToScene.emit(nextScene)
 
-	GlobalInput.isPauseShortcutAllowed = true # Reenable the Pause Overlay
+	GlobalInput.isPauseShortcutAllowed = true # Reenable the Pause Overlay # TBD: Restore previousIsPauseShortcutAllowed?
 
 
 ## Shortcut for calling [method pushCurrentSceneToStack] then [method transitionToScene].
@@ -153,8 +164,8 @@ func pushCurrentSceneToStack() -> int:
 	return sceneStack.size()
 
 
-## Transitions to the PREVIOUS scene from the top/end of the [member sceneStack], if any, and returns it.
-## NOTE: Returns the previous scene from the stack EVEN IF the transition was NOT successful.
+## Transitions to the PREVIOUS scene from the top/end of the [member sceneStack], if any, and returns that scene,
+## or returns `null` if the transition was not successful.
 func popSceneFromStack(pauseSceneTree: bool = true, unpauseSceneTree: bool = pauseSceneTree, animate: bool = animateDefault) -> PackedScene:
 
 	if sceneStack.is_empty(): # Can't pop if there are no scenes on the stack.
@@ -170,25 +181,25 @@ func popSceneFromStack(pauseSceneTree: bool = true, unpauseSceneTree: bool = pau
 	var previousScenePathFromStack: String  = sceneStack[sceneStack.size() - 1]
 	var previousSceneFromStack: PackedScene = load(previousScenePathFromStack)
 	
-	if previousSceneFromStack:
-		sceneStack.remove_at(sceneStack.size() - 1) # TBD: Pop stack even on failure?
-		Debug.printAutoLoadLog(str("popSceneFromStack() → ", previousScenePathFromStack, " → stack size: ", sceneStack.size()))
-	else:
+	if not previousSceneFromStack:
 		Debug.printError("popSceneFromStack(): Cannot load path: " + previousScenePathFromStack, logName)
 		return null
 
 	await self.transitionToScene(previousSceneFromStack, pauseSceneTree, unpauseSceneTree, animate) # IMPORTANT: await for animations
 
-	# Verify the transition
-
 	# Make sure there IS a scene after the transition.
-	if sceneTree.current_scene:
-		var scenePathAfterTransition: String = sceneTree.current_scene.scene_file_path
-		if not scenePathAfterTransition == previousScenePathFromStack:
-			Debug.printWarning(str("SceneTree.current_scene.scene_file_path: ", scenePathAfterTransition, " != previousScenePathFromStack: ", previousScenePathFromStack), logName)
+	var scenePathAfterTransition: String = sceneTree.current_scene.scene_file_path if sceneTree.current_scene else "null"
 
-	didPopScene.emit(previousScenePathFromStack)
-	return previousSceneFromStack
+	# Verify the transition
+	if scenePathAfterTransition == previousScenePathFromStack:
+		# NOTE: Make sure the transition succeeded before popping the stack
+		sceneStack.remove_at(sceneStack.size() - 1) # TBD: Pop stack even on failure?
+		Debug.printAutoLoadLog(str("popSceneFromStack() → ", previousScenePathFromStack, " → stack size: ", sceneStack.size()))
+		didPopScene.emit(previousScenePathFromStack)
+		return previousSceneFromStack
+	else:
+		Debug.printWarning(str("SceneTree.current_scene.scene_file_path: ", scenePathAfterTransition, " != previousScenePathFromStack: ", previousScenePathFromStack), logName)
+		return null
 
 #endregion
 
@@ -224,8 +235,9 @@ func togglePause() -> bool:
 
 ## Returns the path for a scene from a class type.
 ## Convenient for getting the scene for a component.
-## e.g. [JumpComponent] returns "res://Components/Control/JumpComponent.tscn"
-## WARNING: This assumes that the scene's name is the same as the `class_name`
+## e.g. [JumpComponent] i.e. `getScenePathFromClass(JumpComponent)` returns "res://Components/Control/JumpComponent.tscn"
+## ALERT: This assumes that the Scene's name is the same as the Script's `class_name`
+## e.g. "Entity" → "Entity.gd" → "Entity.tscn"
 func getScenePathFromClass(type: Script) -> String: # TBD: Make `static`?
 	# TBD: Cache frequent paths?
 	# var className: String = type.get_global_name()

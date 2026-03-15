@@ -16,7 +16,7 @@ extends AreaCollisionComponent
 ## If not empty, only physics nodes belonging to this group will be included in the contact lists, e.g. "zones" etc.
 ## IMPORTANT: The [CollisionObject2D] collision and layer masks still apply.
 ## PERFORMANCE: Only 1 group is checked because comparing array-with-array "intersection" search is slower.
-@export var groupToInclude: StringName
+@export var groupToInclude: StringName # TBD: Allow multiple groups by comparing substrings?
 #endregion
 
 
@@ -28,7 +28,7 @@ var bodiesInContact: Array[Node2D] ## A list of [PhysicsBody2D]s OR [TileMapLaye
 
 func setIsEnabled(newValue: bool) -> void:
 	super.setIsEnabled(newValue)
-	if isEnabled: resetContactLists()
+	if isEnabled and self.is_node_ready(): resetContactLists() # Get the existing touchies when we're re-enabled
 
 #endregion
 
@@ -36,11 +36,10 @@ func setIsEnabled(newValue: bool) -> void:
 func _ready() -> void:
 	super._ready() # Start monitoring exits after adding existing overlaps
 	self.set_physics_process(self.debugMode) # Disable per-frame debugging until needed
-	# NOTE: Other compenents may not receive signals for already overlapping nodes,
-	# because they may connect to signals later in their own _ready() if they're ordered lower on the scene tree,
-	# so we call_deferred() instead of right away.
-	# CHECK: Is this correct/reliable?
-	resetContactLists.call_deferred()
+	# ALERT: Other compenents may not receive signals for already overlapping nodes,
+	# because they may connect to signals later in their own _ready() if they're ordered lower on the scene tree.
+	# TBD: Should we call_deferred() instead of right away?
+	resetContactLists()
 
 
 ## Clears the [member areasInContact] & [member bodiesInContact] arrays and re-adds all [Area2D]s, [PhysicsBody2D]s or [TileMapLayer]s that are currently in contact with the [Area2D] of this component.
@@ -83,7 +82,6 @@ func resetContactLists() -> void:
 ## Subclasses may override this function to specify different conditions.
 ## ALERT: PERFORMANCE: The default implementation does NOT check [member shouldMonitorAreas] or [isEnabled] or duplicate areas already in [areasInContact]
 func shouldIncludeArea(areaToCheck: Area2D) -> bool:
-	# TBD: Use .get_parent() instead of .owner?
 	return  not (areaToCheck == parentEntity or parentEntity.is_ancestor_of(areaToCheck)) \
 			and (groupToInclude.is_empty()   or areaToCheck.is_in_group(groupToInclude))
 
@@ -92,7 +90,6 @@ func shouldIncludeArea(areaToCheck: Area2D) -> bool:
 ## Subclasses may override this function to specify different conditions.
 ## ALERT: PERFORMANCE: The default implementation does NOT check [member shouldMonitorBodies] or [isEnabled] or duplicate bodies already in [bodiesInContact]
 func shouldIncludeBody(bodyToCheck: Node2D) -> bool:
-	# TBD: Use .get_parent() instead of .owner?
 	return  not (bodyToCheck == parentEntity or parentEntity.is_ancestor_of(bodyToCheck)) \
 			and (groupToInclude.is_empty()   or bodyToCheck.is_in_group(groupToInclude))
 
@@ -111,7 +108,7 @@ func onAreaEntered(areaEntered: Area2D) -> void:
 	if not isEnabled or not shouldMonitorAreas or not shouldIncludeArea(areaEntered): return
 
 	if debugMode:
-		printDebug(str("areaEntered: ", areaEntered, ", owner: ", areaEntered.owner))
+		printDebug(str("onAreaEntered(): ", areaEntered, ", owner: ", areaEntered.owner))
 		emitDebugBubble(str("IN:", areaEntered, "\n", areaEntered.owner), Color.YELLOW)
 
 	# If the node is already in the list, then that's a weird situation, but we must still emit the other signals because the physics event is real.
@@ -126,7 +123,7 @@ func onBodyEntered(bodyEntered: Node2D) -> void:
 	if not isEnabled or not shouldMonitorBodies or not shouldIncludeBody(bodyEntered): return
 
 	if debugMode:
-		printDebug(str("bodyEntered: ", bodyEntered, ", owner: ", bodyEntered.owner))
+		printDebug(str("onBodyEntered(): ", bodyEntered, ", owner: ", bodyEntered.owner))
 		emitDebugBubble(str("IN:", bodyEntered, "\n", bodyEntered.owner), Color.YELLOW)
 
 	# If the node is already in the list, then that's a weird situation, but we must still emit the other signals because the physics event is real.
@@ -142,7 +139,7 @@ func onBodyEntered(bodyEntered: Node2D) -> void:
 func onAreaExited(areaExited: Area2D) -> void:
 	if not shouldMonitorAreas or not areasInContact.has(areaExited): return
 	if debugMode:
-		printDebug(str("areaExited: ", areaExited, ", owner: ", areaExited.owner))
+		printDebug(str("onAreaExited(): ", areaExited, ", owner: ", areaExited.owner))
 		emitDebugBubble(str("OUT:", areaExited, "\n", areaExited.owner), Color.ORANGE)
 
 	areasInContact.erase(areaExited)
@@ -155,7 +152,7 @@ func onAreaExited(areaExited: Area2D) -> void:
 func onBodyExited(bodyExited: Node2D) -> void:
 	if not shouldMonitorBodies or not bodiesInContact.has(bodyExited): return
 	if debugMode:
-		printDebug(str("bodyExited: ", bodyExited, ", owner: ", bodyExited.owner))
+		printDebug(str("onBodyExited(): ", bodyExited, ", owner: ", bodyExited.owner))
 		emitDebugBubble(str("OUT:", bodyExited, "\n", bodyExited.owner), Color.ORANGE)
 
 	bodiesInContact.erase(bodyExited)
