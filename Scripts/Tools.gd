@@ -1298,9 +1298,9 @@ func rollChance(chancePercent: int) -> bool:
 ## Returns a copy of a number wrapped around to the [param minimum] or [param maximum] value if it exceeds or goes below either limit (inclusive).
 ## May be used to cycle through a range by adding/subtracting an offset to [param current] such as +1 or -1. The number may be an array index or `enum` state, or a sprite position to wrap it around the screen Pac-Man-style.
 static func wrapInteger(minimum: int, current: int, maximum: int) -> int:
-	# TBD: Use Godot's pingpong()?
+	# NOTE: Cannot use Godot's pingpong() because it "bounces" not "wraps"
 	if minimum > maximum:
-		Debug.printWarning(str("cycleInteger(): minimum ", minimum, " > maximum ", maximum, ", returning current: ", current))
+		Debug.printWarning(str("wrapInteger(): minimum ", minimum, " > maximum ", maximum, ", returning current: ", current))
 		return current
 	elif minimum == maximum: # If there is no difference between the range, just return either.
 		return minimum
@@ -1309,6 +1309,21 @@ static func wrapInteger(minimum: int, current: int, maximum: int) -> int:
 
 	# THANKS: rubenverg@Discord, lololol__@Discord
 	return posmod(current - minimum, maximum - minimum + 1) + minimum # +1 to make limits inclusive
+
+#endregion
+
+
+#region Array Functions
+
+static func validateArrayIndex(array: Array, index: int) -> bool:
+	return index >= 0 and index < array.size()
+
+
+## Takes a [param index] and increments it by the specified amount, wrapping it around to 0 + remainder if it exceeds an [param array]'s size.
+## Returns 0 if the array is empty, which will be an invalid index.
+static func wrapArrayIndex(array: Variant, index: int, increment: int) -> int: # NOTE: Typed as [Variant] instead of [Array] in order to also accept [PackedStringArray] etc.
+	if not array.is_empty(): return Tools.wrapInteger(0, index + increment, array.size() - 1)
+	else: return 0
 
 #endregion
 
@@ -1420,10 +1435,6 @@ static func getPathWithDifferentExtension(sourcePath: String, replacementExtensi
 
 
 #region Miscellaneous Functions
-
-static func validateArrayIndex(array: Array, index: int) -> bool:
-	return index >= 0 and index < array.size()
-
 
 ## Checks whether a [Variant] value may be considered a "success", for example the return of a function.
 ## If [param value] is a [bool], then it is returned as is.
