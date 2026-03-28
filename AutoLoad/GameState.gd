@@ -175,7 +175,7 @@ func saveGame() -> void: # NOTE: Cannot be `static` because of `self.process_mod
 	self.process_mode = Node.PROCESS_MODE_ALWAYS
 	sceneTree.paused = true
 
-	Global.screenshot("Save") # DEBUG: Take a screenshop for comparison
+	await Global.screenshot("Save") # DEBUG: Take a screenshop for comparison
 
 	var packedSceneToSave: PackedScene = PackedScene.new()
 	packedSceneToSave.pack(sceneTree.get_current_scene())
@@ -203,6 +203,7 @@ func loadGame() -> void:  # NOTE: Cannot be `static` because of `self.process_mo
 
 	sceneTree.paused = false
 	sceneTree.change_scene_to_packed(packedSceneLoaded)
-	Global.screenshot("Load") # DEBUG: Take a screenshop for comparison, but BUG: The screenshot gets delayed
+	await sceneTree.scene_changed
+	if OS.is_debug_build(): await Global.screenshot("Load") # DEBUG: Take a screenshop for comparison
 
 #endregion

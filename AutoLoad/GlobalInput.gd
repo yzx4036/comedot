@@ -159,7 +159,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	# Save & Load
 
 	if event.is_action_released(GlobalInput.Actions.screenshot):
-		Global.screenshot()
+		Global.screenshot() # TBD: Should we `await`?
 		isHandled = true
 
 	if event.is_action_released(GlobalInput.Actions.quickLoad): # TBD: Should Loading take precedence over Saving?
@@ -191,6 +191,7 @@ func generateInputEvent(inputActionName: StringName, pressed: bool = true, stren
 ## Returns a list of the textual representation of keys, buttons or other controls specified for an Input Action, such as "Space" for "jump".
 ## Trims redundant text such as " (Physical)"
 func getInputEventText(action: StringName) -> PackedStringArray:
+	if not InputMap.has_action(action): return []
 	var strings: PackedStringArray
 	for event: InputEvent in InputMap.action_get_events(action):
 		strings.append(event.as_text().trim_suffix(" (Physical)"))
