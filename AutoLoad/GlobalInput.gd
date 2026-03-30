@@ -70,9 +70,14 @@ class Actions:
 		debugWindow, debugTest, debugBreak
 		]
 
-	static var allActions: Dictionary: ## Returns a list of all the input action `const` property names & values. NOTE: NOT updated during runtime!
+	static var allActions: Dictionary[StringName, StringName]: ## Returns a list of all the input action `const` property names & values. NOTE: NOT updated during runtime!
 		get:
-			if not allActions: allActions = Actions.new().get_script().get_script_constant_map()
+			if not allActions or allActions.is_empty():
+				var constants: Dictionary = Actions.new().get_script().get_script_constant_map()
+				for constant:  StringName in constants:
+					var value: Variant = constants[constant]
+					if value is StringName and InputMap.has_action(value):
+						allActions[constant] = value
 			return allActions
 
 ## Replacements for certain strings in the text representations of InputEvent control names, such as "Keyboard" instead of "Physical".
@@ -90,10 +95,10 @@ var isPauseShortcutAllowed: bool = true
 
 #region Signals
 @warning_ignore("unused_signal")
-signal didAddInputEvent(inputAction: StringName, inputEvent: InputEvent) ## Emitted by [InputActionUI]
+signal didAddInputEvent(inputAction: StringName,	inputEvent: InputEvent) ## Emitted by [InputActionUI]
 
 @warning_ignore("unused_signal")
-signal didDeleteInputEvent(inputAction: StringName, inputEvent: InputEvent) ## Emitted by [InputActionEventUI]
+signal didDeleteInputEvent(inputAction: StringName,	inputEvent: InputEvent) ## Emitted by [InputActionEventUI]
 #endregion
 
 
@@ -106,13 +111,15 @@ func _enter_tree() -> void:
 ## Global shortcuts including gamepad etc.
 func _unhandled_input(event: InputEvent) -> void:
 	# TBD: Should we check `event` or [Input]?
-	if not event.is_action_type(): return
+	if not event.is_action_type() or event.is_echo(): return
 
-	var isHandled: bool = false # Keep other scripts from eating our leftovers, e.g. prevent the Escape key for "Pause" also triggering a "Back" event or vice-versa.
+	# DESIGN: if there is UI such as a dialog, then Escape/Pause should be treated as "back" or "cancel";
+	# if the event is still unhandled, i.e. during normal gameplay, then treat it as "pause"
+	var isHandled: bool = false
 
 	# Game
 
-	if  self.isPauseShortcutAllowed and not SceneManager.ongoingTransitionScene and Input.is_action_just_pressed(Actions.pause): # Prevent pausing during scene transitions
+	if  self.isPauseShortcutAllowed and not SceneManager.ongoingTransitionScene and event.is_action_pressed(Actions.pause): # Prevent pausing during scene transitions
 		self.process_mode = Node.PROCESS_MODE_ALWAYS # TBD: CHECK: HACK: Is this necessary?
 		SceneManager.togglePause()
 		isHandled = true
@@ -123,7 +130,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Global keyboard shortcuts
 func _unhandled_key_input(event: InputEvent) -> void:
 	# TBD: Should we check `event` or [Input]?
-	if not event.is_action_type(): return
+	if not event.is_action_type() or event.is_echo(): return
 
 	var isHandled: bool = false # Keep other scripts from eating our leftovers, e.g. prevent the Escape key for "Pause" also triggering a "Back" event or vice-versa.
 
@@ -131,27 +138,27 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 	# Debugging, before any other actions are handled.
 
-	if Input.is_action_just_released(Actions.debugBreak):
+	if event.is_action_released(Actions.debugBreak):
 		Debug.printDebug("Debug Breakpoint Input Received")
 		breakpoint # TBD: Use `breakpoint` or `assert(false)`? `assert` also adds a message but only runs in debug builds.
 		# assert(false, "Debug Breakpoint Input Received")
 		isHandled = true
-	elif Input.is_action_just_released(Actions.debugWindow):
+	elif event.is_action_released(Actions.debugWindow):
 		Debug.toggleDebugWindow()
 		isHandled = true
 
 	# Window
 
-	if Input.is_action_just_released(Actions.windowToggleAlwaysOnTop):
+	if event.is_action_released(Actions.windowToggleAlwaysOnTop):
 		GlobalUI.toggleAlwaysOnTop()
 		get_viewport().set_input_as_handled() # TBD: Should we let these shortcuts affect other things?
 		isHandled = true
 
-	if Input.is_action_just_released(Actions.windowResizeTo720):
+	if event.is_action_released(Actions.windowResizeTo720):
 		GlobalUI.setWindowSize(1280, 720)
 		get_viewport().set_input_as_handled() # TBD: Should we let these shortcuts affect other things?
 		isHandled = true
-	elif Input.is_action_just_released(Actions.windowResizeTo1080):
+	elif event.is_action_released(Actions.windowResizeTo1080):
 		GlobalUI.setWindowSize(1920, 1080)
 		get_viewport().set_input_as_handled() # TBD: Should we let these shortcuts affect other things?
 		isHandled = true
@@ -232,17 +239,18 @@ func isInputEventUIAction(event: InputEvent) -> bool:
 	return false
 
 
-## Returns all the player control input actions from [GlobalInput] that match a given [InputEvent].
-## A jank workaround for Godot's lack of built-in API for a common task.
+## Returns all the player control input actions from [GlobalInput] that match a given [InputEvent]
+## A jank workaround for dummy Godot's lack of built-in API for such a common task.
 ## WARNING: PERFORMANCE: May be too slow; avoid calling frequently!
 ## @experimental
-func findActionsFromInputEvent(event: InputEvent) -> Array[StringName]:
+func findActionsFromInputEvent(event: InputEvent, exactMatch: bool = false) -> Array[StringName]:
 	if not event.is_action_type(): return []
 	# PERFORMANCE: GRRR: Since dummy Godot does not provide any direct way to get the input actions from an [InputEvent],
 	# we have to manually check every possibility... >:(
-	var inputActions: Array[StringName]
-	for propertyName: String in Actions.allActions:
-		if event.is_action(propertyName): inputActions.append(propertyName)
-	return inputActions
+	var matchingActions: Array[StringName]
+	for actionName: StringName in Actions.allActions.values():
+		if event.is_action(actionName, exactMatch): # NOTE: No need to recheck `InputMap.has_action(actionName)` because the `allActions` getter/builder already checked that.
+			matchingActions.append(actionName)
+	return matchingActions
 
 #endregion
