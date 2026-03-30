@@ -6,6 +6,15 @@
 - Use `project.godot` as the runtime truth, especially `config/features` (currently `4.7`) and enabled autoloads/plugins.
 
 
+## Game-Specific Project Memory
+- The current active game root is `Game/Cd_ProjectZero/`, as defined by `Game/override.cfg`.
+- For any task inside `Game/`, read `Game/Cd_ProjectZero/Docs/ProjectPrompt.md` first and treat it as the canonical game-specific prompt.
+- `Game/Cd_ProjectZero/Docs/ProjectPrompt.md` is a Chinese-language document; expect mixed Chinese and English for paths, identifiers, scene names, APIs, and technical terms.
+- Before reading or summarizing game plans / memory, preserve the original mixed-language meaning instead of translating code symbols or file paths.
+- Use that document for the current game's design direction, project overview, development constraints, and decision log; update it when those change.
+- Keep framework-layer guidance in this file separate from game-layer guidance in the game prompt so reusable Comedot rules stay clean.
+
+
 ## High-Value Folder Map
 - `Components/`: reusable gameplay behavior units (always scene + script).
 - `Entities/`: container nodes that aggregate components.

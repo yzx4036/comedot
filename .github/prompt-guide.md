@@ -5,6 +5,8 @@ This file provides reusable prompt templates for AI coding assistants working in
 
 ## Before You Ask the AI
 - State whether the change targets framework code or `Game/` code.
+- If the task targets `Game/`, include `Game/Cd_ProjectZero/Docs/ProjectPrompt.md` as required context and say whether that file also needs updating.
+- Note that `Game/Cd_ProjectZero/Docs/ProjectPrompt.md` is written in Chinese and may mix Chinese text with English paths, identifiers, and engine terminology.
 - Provide exact file paths when possible.
 - Say whether you want minimal patch vs broad refactor.
 - If scene behavior is involved, include the scene path (`.tscn`) and expected runtime behavior.
@@ -79,10 +81,29 @@ Requirements:
 ```
 
 
+## Prompt Template: Game-Specific Implementation
+```text
+Implement <feature> inside `Game/Cd_ProjectZero/`.
+Required context:
+- Read `Game/Cd_ProjectZero/Docs/ProjectPrompt.md` first.
+- Treat that file as the current game's canonical design / overview / development prompt.
+- Read it as a Chinese document with mixed Chinese/English technical context; do not mistranslate file paths, APIs, class names, or symbol names.
+Constraints:
+- Keep reusable framework changes outside `Game/` separate and minimal.
+- If the feature changes design direction, milestones, or project rules, update `Docs/ProjectPrompt.md` in the same patch.
+- If startup flow changes, also update `Docs/StartupFlow.md`.
+Output:
+1) files changed
+2) gameplay or workflow impact
+3) manual verification steps
+```
+
+
 ## Good Prompting Examples
 - "Add a reusable `CollectOnProximityComponent` under `Components/Interaction/` with a `Node2D` root and scene+script pair. Reuse existing collectible subsystem signals if available."
 - "Fix duplicate pause toggle issue by changing only `AutoLoad/SceneManager.gd` and relevant UI script; do not alter unrelated input mappings."
 - "Review turn-based queue processing in `AutoLoad/TurnBasedCoordinator.gd` and `Entities/TurnBased/TurnBasedEntity.gd`; list concrete bugs first with line refs."
+- "Implement the game's first interactable prototype in `Game/Cd_ProjectZero/Components/` and update `Game/Cd_ProjectZero/Docs/ProjectPrompt.md` with the finalized feature direction."
 
 
 ## Anti-Patterns to Avoid in Prompts
