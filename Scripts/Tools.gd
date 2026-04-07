@@ -61,6 +61,15 @@ class CompassVectors:
 	const north		:= Vector2i.UP
 	const northEast	:= Vector2i(+1, -1)
 
+
+enum Shape {
+	none,
+	circle,
+	rectangle, # Wanted to call #2 "square" to match with "²" :')
+	triangle
+	}
+
+
 ## For use with [method Array.pick_random] with an optional scaling factor.
 const plusMinusOneOrZero:		Array[int]	 = [-1, 0, +1] # TBD: Name :')
 
@@ -837,8 +846,8 @@ static func getCellOccupant(data: TileMapCellData, coordinates: Vector2i) -> Ent
 
 ## Uses a custom data structure to mark individual [TileMap] cells (not tiles) as occupied or unoccupied by an [Entity].
 static func setCellOccupancy(data: TileMapCellData, coordinates: Vector2i, isOccupied: bool, occupant: Entity) -> void:
-	data.setCellData(coordinates, Global.TileMapCustomData.isOccupied, isOccupied)
-	data.setCellData(coordinates, Global.TileMapCustomData.occupant, occupant if isOccupied else null)
+	data.setCellData(coordinates, Global.TileMapCustomData.isOccupied, isOccupied) # NOTE: Do NOT delete this key, because a MISSING key is assumed to be a vacant cell!
+	data.setCellData(coordinates, Global.TileMapCustomData.occupant, occupant if isOccupied else null) # PERFORMANCE: Not using TileMapCellData.eraseCellData() so we can avoid allocation churn
 
 
 static func checkTileAndCellVacancy(map: TileMapLayer, data: TileMapCellData, coordinates: Vector2i, ignoreEntity: Entity) -> bool:
@@ -880,6 +889,10 @@ static func checkCellVacancy(mapData: TileMapCellData, coordinates: Vector2i, ig
 	var isCellVacant: bool = false
 
 	# First check the CELL data because it's quicker
+
+	# Make sure the `isOccupied` flag exists
+	if not mapData.hasCellData(coordinates, Global.TileMapCustomData.isOccupied):
+		return true # If there is no such flag at all, `true` OR `false`, just assume that this map doesn't support occupancy, and report it as a vacant space.
 
 	var cellDataOccupied: Variant = mapData.getCellData(coordinates, Global.TileMapCustomData.isOccupied) # NOTE: Should not be `bool` so it can be `null` if missing, NOT `false` if missing.
 	var cellDataOccupant: Entity  = mapData.getCellData(coordinates, Global.TileMapCustomData.occupant)

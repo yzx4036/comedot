@@ -91,7 +91,7 @@ signal didEndTurn
 func _enter_tree() -> void:
 	super._enter_tree()
 	self.resetSkipCounter()
-	self.add_to_group(Global.Groups.turnBased, true) # IMPORTANT: Add to turn-based group BEFORE calling `TurnBasedCoordinator.addEntity()` in case the coordinator operates on that group.
+	if not self.is_in_group(Global.Groups.turnBased): self.add_to_group(Global.Groups.turnBased, true) # persistent # IMPORTANT: Add to turn-based group BEFORE calling `TurnBasedCoordinator.addEntity()` in case the coordinator operates on that group.
 	TurnBasedCoordinator.addEntity(self)
 
 
@@ -260,7 +260,9 @@ func unregisterComponent(componentToRemove: Component) -> bool:
 ## Searches all children and returns an array of all nodes that extend [TurnBasedComponent].
 ## NOTE: May be slow. Use the [member turnBasedComponents] array instead.
 func findTurnBasedComponents() -> Array[TurnBasedComponent]:
-	return self.findChildrenOfType(TurnBasedComponent)
+	var filteredArray: Array[TurnBasedComponent]
+	filteredArray.assign(self.findChildrenOfType(TurnBasedComponent)) # CHECK: In a future Godot version, will Array.assign() be enough to filter types?
+	return filteredArray
 
 #endregion
 
