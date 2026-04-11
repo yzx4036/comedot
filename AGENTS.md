@@ -94,7 +94,10 @@ Follow the guidelines in `Conventions.md`, which includes these key rules:
 
 
 ## Common Godot Errors & Gotchas to Avoid
+- When comparing `float` use `is_equal_approx()` and `is_zero_approx()` instead of a direct `==` or `!=` or `>=` or `<=` but `>` and `<` are OK.
+- Do not cast types using a direct `as` or `is`: Avoid `var otherNodeAsCastedType: CastedType = otherNode as CastedType` or `if otherNode is CastedType:` because the Godot parser considers it as an error; instead use this workaround: `var otherNodeAsCastedType: CastedType = nodeToCast.get_node(^".") as CastedType` (the `as` in this case is superfluous and may be omitted) or `if is_instance_of(someNode, CastedType)`
 - `is` checks and `as` casts are used in this codebase. Follow existing patterns from `Entities/Entity.gd`: use `is`/`is_instance_of` for type checks, and for self-casts prefer `get_node(".") as SomeType` when assigning to a strongly-typed variable.
+
 
 
 ## Commit & Pull Request Guidelines

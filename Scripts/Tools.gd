@@ -50,7 +50,7 @@ const compassDirectionOpposites: Dictionary[CompassDirection, CompassDirection] 
 
 ## A list of unit vectors representing 8 compass directions.
 class CompassVectors:
-	# TBD: Replace with `compassDirectionVectors[CompassDirection]`?
+	# TBD: PERFORMANCE: Replace with `compassDirectionVectors[CompassDirection]` or are these simple `const`ants faster?
 	const none		:= Vector2i.ZERO
 	const east		:= Vector2i.RIGHT
 	const southEast	:= Vector2i(+1, +1)
@@ -125,7 +125,6 @@ static func disconnectSignal(sourceSignal: Signal, targetCallable: Callable) -> 
 ## Connects/reconnects OR disconnects a [Signal] from a [Callable] safely, based on the [param reconnect] flag.
 ## TIP: This saves having to type `if someFlag: connectSignal(…) else: disconnectSignal(…)`
 static func toggleSignal(sourceSignal: Signal, targetCallable: Callable, reconnect: bool, flags: int = 0) -> int:
-	# TBD: Should `reconnect` be a nullable Variant?
 	if reconnect and not sourceSignal.is_connected(targetCallable):
 		return sourceSignal.connect(targetCallable, flags) # No idea what the return value is for.
 	elif not reconnect and sourceSignal.is_connected(targetCallable):
@@ -137,17 +136,18 @@ static func toggleSignal(sourceSignal: Signal, targetCallable: Callable, reconne
 ## A safe wrapper around [method Object.call] or [method Object.callv] that does not crash if the function/method name is missing.
 ## Returns the result of the call.
 ## TIP: Useful for passing customizable functions such as dynamically choosing different animations on `Animations.gd`
-static func callCustom(object: Variant, functionName: StringName, ...arguments: Array) -> Variant:
+## ALERT: Does NOT check if [param object] is a valid non-null [Object]
+static func callCustom(object: Object, functionName: StringName, ...arguments: Array) -> Variant:
 	if object.has_method(functionName):
 		return object.callv(functionName, arguments)
 	else:
-		Debug.printWarning(str("callCustom(): ", object, " has no such function: " + functionName), "Tools.gd")
+		Debug.printWarning(str("callCustom(): ", object, " invalid or has no such function: " + functionName), object)
 		return null
 
 
 ## Returns a [StringName] with the `class_name` from a [Script] type.
 ## NOTE: This method is needed because we cannot directly write `SomeTypeName.get_global_name()` :(
-func getStringNameFromClass(type: Script) -> StringName:
+static func getStringNameFromClass(type: Script) -> StringName:
 	return type.get_global_name()
 
 
@@ -246,6 +246,7 @@ static func flatMapNodeTree(nodeToIterate: Node, existingList: Array[Node]) -> v
 
 
 ## Calls [method Tools.flatMapNodeTree] to return a linear/"flattened" list of ALL the child nodes AND their subchildren, recursively, from the specified [param firstNode].
+## NOTE: INCLUDES [param firstNode] (the parent)
 ## @experimental
 static func getAllChildrenRecursively(firstNode: Node) -> Array[Node]:
 	# TBD: Merge with flatMapNodeTree()?
@@ -255,32 +256,45 @@ static func getAllChildrenRecursively(firstNode: Node) -> Array[Node]:
 
 
 ## Replaces a child node with another node at the same index (order), optionally copying the position, rotation and/or scale.
-## NOTE: The previous child and its sub-children are NOT deleted by default. To delete a child, set [param freeReplacedChild] or use [method Node.queue_free].
+## NOTE: The previous child and its sub-children are NOT deleted by default. To delete a child, set [param freeReplacedChild] or use [method Node.queue_free]
 ## Returns: `true` if [param childToReplace] was found and replaced.
-static func replaceChild(parentNode: Node, childToReplace: Node, newChild: Node, copyPosition: bool = false, copyRotation: bool = false, copyScale: bool = false, freeReplacedChild: bool = false) -> bool:
-	if childToReplace.get_parent() != parentNode:
+static func replaceChild(
+	parentNode:		Node,
+	childToReplace:	Node,
+	newChild:		Node,
+	copyPosition:	bool = false,
+	copyRotation:	bool = false,
+	copyScale:		bool = false,
+	freeReplacedChild: bool = false) -> bool:
+	
+	if  childToReplace == newChild: return true # Are we trying to make the same node replace itself lol
+
+	if  childToReplace.get_parent() != parentNode:
 		Debug.printWarning(str("replaceChild() childToReplace.get_parent(): ", childToReplace.get_parent(), " != parentNode: ", parentNode))
 		return false
 
 	# Is the new child already in another parent?
 	# TODO: Option to remove new child from existing parent
 	var newChildCurrentParent: Node = newChild.get_parent()
-	if newChildCurrentParent != null and newChildCurrentParent != parentNode:
+	if  newChildCurrentParent != null and newChildCurrentParent != parentNode:
 		Debug.printWarning("replaceChild(): newChild already in another parent: " + str(newChild, " in ", newChildCurrentParent))
 		return false
-
+	
 	# Copy properties
-	if copyPosition: newChild.position	= childToReplace.position
-	if copyRotation: newChild.rotation	= childToReplace.rotation
-	if copyScale:	 newChild.scale		= childToReplace.scale
+	if  newChild is Node2D and childToReplace is Node2D:
+		if copyPosition: newChild.position	= childToReplace.position
+		if copyRotation: newChild.rotation	= childToReplace.rotation
+		if copyScale:	 newChild.scale		= childToReplace.scale
 
 	# Swap the kids
 	var previousChildIndex: int = childToReplace.get_index() # The original index
 	parentNode.remove_child(childToReplace) # NOTE: Do not use `replace_by()` which transfers all sub-children as well.
 
-	Tools.addChildAndSetOwner(newChild, parentNode) # Ensure persistence
+	# If `newChild` is already in the target `parentNode`, just move it to the `childToReplace`'s place in the order and position etc.
+	if newChild.get_parent() != parentNode:
+		Tools.addChildAndSetOwner(newChild, parentNode) # Ensure persistence e.g. to a [PackedScene] for save/load
+
 	parentNode.move_child(newChild, previousChildIndex)
-	newChild.owner = parentNode # INFO: Necessary for persistence to a [PackedScene] for save/load.
 
 	# Yeet the disowned child?
 	if freeReplacedChild: childToReplace.queue_free()
@@ -292,14 +306,13 @@ static func replaceChild(parentNode: Node, childToReplace: Node, newChild: Node,
 ## NOTE: The new child is added regardless of whether the parent already had a child or not.
 ## NOTE: The previous child and its sub-children are NOT deleted by default. To delete a child, set [param freeReplacedChild] or use [method Node.queue_free].
 static func replaceFirstChild(parentNode: Node, newChild: Node, copyPosition: bool = false, copyRotation: bool = false, copyScale: bool = false, freeReplacedChild: bool = false) -> void:
-	var childToReplace: Control = parentNode.findFirstChildControl()
+	var childToReplace: Node = parentNode.get_child(0) if parentNode.get_child_count() > 0 else null
 	# Debug.printDebug(str("replaceFirstChildControl(): ", childToReplace, " → ", newChild), parentNode)
 
 	if childToReplace:
 		Tools.replaceChild(parentNode, childToReplace, newChild, copyPosition, copyRotation, copyScale, freeReplacedChild)
 	else: # If there are no children, just add the new one.
 		Tools.addChildAndSetOwner(newChild, parentNode) # Ensure persistence
-		newChild.owner = parentNode # For persistence
 
 
 ## Removes each child from the [parameter parent] then calls [method Node.queue_free] on the child.
@@ -308,7 +321,7 @@ static func removeAllChildren(parent: Node) -> int:
 	var removalCount: int = 0
 
 	for child in parent.get_children():
-		parent.remove_child(child) # TBD: Is this needed? Does NOT delete nodes, unlike queue_free()
+		parent.remove_child(child) # TBD: Is this needed? Does NOT delete nodes, unlike queue_free() but maybe we want to see immediate removal instead of waiting on "queue"
 		child.queue_free()
 		removalCount += 1
 
@@ -332,9 +345,10 @@ static func removeSiblingsOfSameType(node: Node, shouldFree: bool = false) -> in
 		Debug.printWarning(str("removeSiblingsOfSameType(): ", node, " has no valid parent!"))
 		return 0
 
+	var children: Array[Node] = parent.get_children(false) # not include_internal # Take a snapshot just in case, to avoid modifying an array while iterating over it
 	var removalCount: int = 0
 
-	for sibling: Node in parent.get_children(false): # Don't include sub-children
+	for sibling: Node in children:
 		if sibling == node: continue # Is it us?
 
 		var isSameType: bool = false
@@ -361,10 +375,10 @@ static func reparentNodes(currentParent: Node, nodesToTransfer: Array[Node], new
 			if node.get_parent() == newParent: # TBD: Is this verification necessary?
 				transferredNodes.append(node)
 			else:
-				Debug.printWarning(str("transferNodes(): ", node, " could not be moved from ", currentParent, " to newParent: ", newParent), node)
+				Debug.printWarning(str("reparentNodes(): ", node, " could not be moved from ", currentParent, " to newParent: ", newParent), node)
 				continue
 		else:
-			Debug.printWarning(str("transferNodes(): ", node, " does not belong to currentParent: ", currentParent), node)
+			Debug.printWarning(str("reparentNodes(): ", node, " does not belong to currentParent: ", currentParent), node)
 			continue
 	return transferredNodes
 
@@ -375,21 +389,22 @@ static func reparentNodes(currentParent: Node, nodesToTransfer: Array[Node], new
 static func findNearestNodeInGroup(referencePosition: Vector2, targetGroup: StringName) -> Node2D:
 	# NOTE: Use Engine.get_main_loop() instead of Node.get_tree()
 	# because when called by ChaseComponent etc. the parent entity may not be in a SceneTree yet
-	var nodesInGroup: Array[Node] = Engine.get_main_loop().get_nodes_in_group(targetGroup)
-	if nodesInGroup.is_empty(): return null
+	var nodesInGroup: Array[Node] = Engine.get_main_loop().get_nodes_in_group(targetGroup) # TBD: Verify that the `MainLoop` is a `SceneTree`?
+	if  nodesInGroup.is_empty(): return null
 
 	var nearestNode:		Node2D  = null
 	var minimumDistance:	float   = INF # Start with infinity
 	var checkingDistance:	float
 
 	for nodeToCheck in nodesInGroup:
-		if nodeToCheck is Node2D:
-			checkingDistance = referencePosition.distance_squared_to(nodeToCheck.global_position) # PERFORMANCE: distance_squared_to() is faster than distance_to()
-			if is_zero_approx(checkingDistance):
-				return nearestNode # Can't get any closer than 0!
-			elif checkingDistance < minimumDistance:
-				minimumDistance = checkingDistance
-				nearestNode = nodeToCheck
+		if nodeToCheck is not Node2D: continue
+		
+		checkingDistance = referencePosition.distance_squared_to(nodeToCheck.global_position) # PERFORMANCE: distance_squared_to() is faster than distance_to()
+		if is_zero_approx(checkingDistance):
+			return nodeToCheck # Can't get any closer than 0! Just return the node being checked; no need to update `nearestNode`
+		elif checkingDistance < minimumDistance:
+			minimumDistance   = checkingDistance
+			nearestNode		  = nodeToCheck
 
 	return nearestNode
 
@@ -400,12 +415,12 @@ static func findNearestNodeInGroup(referencePosition: Vector2, targetGroup: Stri
 ## WARNING: May not work correctly with rotation, scaling or negative dimensions.
 static func convertNodeRectToGlobalCoordinates(node: CanvasItem, rect: Rect2) -> Rect2:
 	# TODO: Account for rotation & scaling
-	return Rect2(rect.position + node.global_position, rect.size)
+	return Rect2(node.to_global(rect.position), rect.size)
 
 #endregion
 
 
-#region NodePath Functionss
+#region NodePath Functions
 
 ## Convert a [NodePath] from the `./` form to the absolute representation: `/root/` INCLUDING the property path if any.
 static func convertRelativeNodePathToAbsolute(parentNodeToConvertFrom: Node, relativePath: NodePath) -> NodePath:
@@ -424,12 +439,9 @@ static func convertRelativeNodePathToAbsolute(parentNodeToConvertFrom: Node, rel
 
 ## Splits a [NodePath] into an Array of 2 paths where index [0] is the node's path and [1] is the property chain, e.g. `/root:size:x` → [`/root`, `:size:x`]
 static func splitPathIntoNodeAndProperty(path: NodePath) -> Array[NodePath]:
-	var nodePath: NodePath
-	var propertyPath: NodePath
-
-	nodePath = NodePath(str("/" if path.is_absolute() else "", path.get_concatenated_names()))
-	propertyPath = NodePath(str(":", path.get_concatenated_subnames()))
-
+	var nodePath:	  NodePath	= NodePath(str("/" if path.is_absolute() else "", path.get_concatenated_names()))
+	var subnames:	  String	= path.get_concatenated_subnames()
+	var propertyPath: NodePath	= NodePath(str(":", subnames)) if not subnames.is_empty() else NodePath() # Avoid an invalid trailing `:` if there is no property
 	return [nodePath, propertyPath]
 
 #endregion
@@ -476,7 +488,7 @@ static func getShapeBounds(node: CollisionObject2D) -> Rect2:
 ## To get the bounds of the first shape only, set [param maximumShapeCount] to 1.
 ## NOTE: The rectangle is in the LOCAL coordinates of the [CollisionObject2D]. To convert to GLOBAL coordinates, add + the area's [member Node2D.global_position].
 ## Works most accurately & reliably for areas/bodies with a single [RectangleShape2D].
-## Returns: A [Rect2] of all the merged bounds. On failure: a rectangle with size -1 and the position set to the [CollisionObject2D]'s local position.
+## Returns: A [Rect2] of all the merged bounds. On failure: a rectangle with size -1 and origin (0,0)
 static func getShapeBoundsInNode(node: CollisionObject2D, maximumShapeCount: int = 100) -> Rect2:
 	# TBD: PERFORMANCE: Option to cache results?
 	# HACK: Sigh @ Godot for making this so hard...
@@ -487,7 +499,7 @@ static func getShapeBoundsInNode(node: CollisionObject2D, maximumShapeCount: int
 	# SO, we have to figure out the Shape2D's rectangle in the coordinate space of the CollisionObject2D.
 	# THEN convert it to global coordinates.
 
-	if node.get_child_count() < 1: return Rect2(node.position.x, node.position.y, -1, -1) # In case of failure, return an invalid negative-sized rectangle matching the node's origin.
+	if node.get_child_count() < 1: return Rect2(0, 0, -1, -1) # On failure, return an invalid negative-sized rectangle
 
 	# Get all CollisionShape2D children
 
@@ -503,7 +515,7 @@ static func getShapeBoundsInNode(node: CollisionObject2D, maximumShapeCount: int
 			shapeBounds = Rect2(shapeNode.position - shapeSize / 2, shapeSize) # TBD: PERFORMANCE: Use * 0.5?
 
 			if shapesAdded < 1: combinedShapeBounds = shapeBounds # Is it the first shape?
-			else: combinedShapeBounds.merge(shapeBounds)
+			else: combinedShapeBounds = combinedShapeBounds.merge(shapeBounds)
 
 			# DEBUG: Debug.printDebug(str("shape: ", shapeNode.shape, ", rect: ", shapeNode.shape.get_rect(), ", bounds in node: ", shapeBounds, ", combinedShapeBounds: ", combinedShapeBounds), node)
 			shapesAdded += 1
@@ -511,7 +523,7 @@ static func getShapeBoundsInNode(node: CollisionObject2D, maximumShapeCount: int
 
 	if shapesAdded < 1:
 		Debug.printWarning("getShapeBoundsInNode(): Cannot find a CollisionShape2D child", node)
-		return Rect2(node.position.x, node.position.y, -1, -1)
+		return Rect2(0, 0, -1, -1) # On failure, return an invalid negative-sized rectangle
 	else:
 		# DEBUG: Debug.printTrace([combinedShapeBounds, node.get_child_count(), shapesAdded], node)
 		return combinedShapeBounds
@@ -519,6 +531,7 @@ static func getShapeBoundsInNode(node: CollisionObject2D, maximumShapeCount: int
 
 ## Calls [method Tools.getShapeBoundsInNode] and returns the [Rect2] representing the combined rectangular boundaries/extents of ALL the [CollisionShape2D] children of a [CollisionObject2D] (e.g. [Area2D] or [CharacterBody2D]), converted to GLOBAL coordinates.
 ## Useful for comparing the [Area2D]s etc. of 2 separate nodes/entities.
+## WARNING: May not work correctly with rotation, scaling or negative dimensions.
 static func getShapeGlobalBounds(node: CollisionObject2D) -> Rect2:
 	# TBD: PERFORMANCE: Option to cache results?
 	var shapeGlobalBounds: Rect2 = getShapeBoundsInNode(node)
@@ -879,7 +892,7 @@ static func checkTileVacancy(map: TileMapLayer, coordinates: Vector2i) -> bool:
 	if map is TileMapLayerWithCellData and map.debugMode: Debug.printDebug(str("tileData[isWalkable]: ", isWalkable, ", [isBlocked]: ", isBlocked))
 
 	# If there is no data, assume the tile is always vacant.
-	isTileVacant = (isWalkable or isWalkable == null) and (not isBlocked or isWalkable == null)
+	isTileVacant = (isWalkable or isWalkable == null) and (not isBlocked or isBlocked == null)
 
 	return isTileVacant
 
@@ -987,35 +1000,47 @@ static func convertCoordinatesBetweenTileMaps(sourceMap: TileMapLayer, cellCoord
 
 ## Damages a [TileMapLayer] Cell if it is [member Global.TileMapCustomData.isDestructible].
 ## Changes the cell's tile to the [member Global.TileMapCustomData.nextTileOnDamage] if there is any,
-## or erases the cell if there is no "next tile" specified or both X & Y coordinates are below 0 i.e. (-1,-1)
+## or erases the cell if there is no "next tile" specified or either of the X or Y coordinates are below 0 i.e. (-1,-1)
 ## Returns `true` if the cell was damaged.
 ## @experimental
 static func damageTileMapCell(map: TileMapLayer, coordinates: Vector2i) -> bool:
 	# TODO: Variable health & damage
 	# PERFORMANCE: Do not call Tools.getTileData() to reduce calls
 	var tileData: TileData = map.get_cell_tile_data(coordinates)
-	if tileData:
+	if  tileData:
 		var isDestructible: bool = tileData.get_custom_data(Global.TileMapCustomData.isDestructible)
 		if  isDestructible:
-			var nextTileOnDamage: Vector2i = tileData.get_custom_data(Global.TileMapCustomData.nextTileOnDamage)
-			if nextTileOnDamage and (nextTileOnDamage.x >= 0 or nextTileOnDamage.y >= 0): # Both negative coordinates are invalid or mean "destroy on damage"
-				map.set_cell(coordinates, 0, nextTileOnDamage)
-			else: map.erase_cell(coordinates)
-			return true
+			var shouldEraseCell: bool = false
 
+			if tileData.has_custom_data(Global.TileMapCustomData.nextTileOnDamage):
+				var nextTileOnDamage: Vector2i = tileData.get_custom_data(Global.TileMapCustomData.nextTileOnDamage)
+				if  nextTileOnDamage.x >= 0 and nextTileOnDamage.y >= 0: # If either atlas coordinates are negative it means "destroy on damage"
+					map.set_cell(coordinates, 0, nextTileOnDamage)
+				else: shouldEraseCell = true # Destroy if any of the coordinates is invalid
+			
+			else: shouldEraseCell = true # Destroy if there is no `nextTileOnDamage`
+
+			if shouldEraseCell: 
+				map.erase_cell(coordinates)
+
+			return true
+	# else
 	return false
 
 
 ## Returns an array of random coordinates on a [TileMapLayer] from the specified grid range.
 ## WARNING: Do NOT use [method TileMapLayer.get_used_rect()] [member Rect2i.size] or [member Rect2i.end] as it is NOT 0-based: It will be +1 outside the map's actual grid! TIP: Use [method Rect2i.grow](-1)
-static func findRandomTileMapCells(map: TileMapLayer,
-selectionChance:  float = 1.0,
-includeUsedCells:  bool = true,
-includeEmptyCells: bool = true,
-cellRegionStart: Vector2i = map.get_used_rect().position,
-cellRegionEnd:   Vector2i = map.get_used_rect().grow(-1).end # Make `end` 0-based
+static func findRandomTileMapCells(
+	map:				TileMapLayer,
+	selectionChance:	float = 1.0,
+	includeUsedCells:	bool  = true,
+	includeEmptyCells:	bool  = true,
+	cellRegionStart:	Vector2i = map.get_used_rect().position,
+	cellRegionEnd:		Vector2i = map.get_used_rect().grow(-1).end # Make `end` 0-based
 ) -> Array[Vector2i]:
+
 	# TODO: Validate parameters and sizes
+	# TODO: PERFORMANCE: Using `map.get_used_rect()` twice for default arguments is a bit jank
 	# NOTE: Rect2i parameters are less intuitive because it uses width/height parameters for initialization, not direct end coordinates.
 
 	if (not includeUsedCells and not includeEmptyCells) \
@@ -1076,8 +1101,9 @@ static func randomizeTileMapCells(map: TileMapLayer, cellsToRepaint: Array[Vecto
 ## Creates instance copies of a specified Scene and positions them over a [TileMapLayer]'s cells, each at a unique position in the grid.
 ## Returns a [Dictionary] of the nodes that were created, with their cell coordinates as the keys.
 ## TIP: To spawn scenes at specific cell coordinates, call [method Tools.populateTileMapCells]
-static func populateTileMap(map: TileMapLayer, sceneToCopy: PackedScene, numberOfCopies: int, parentOverride: Node = null, groupToAddTo: StringName = &"") -> Dictionary[Vector2i, Node2D]:
+static func populateTileMap(map: TileMapLayer, sceneToCopy: PackedScene, numberOfCopies: int, parentOverride: Node2D = null, groupToAddTo: StringName = &"") -> Dictionary[Vector2i, Node2D]:
 	# TODO: FIXME: Handle negative cell coordinates
+	# TBD: Allow non-Node2D `parentOverride`?
 	# TBD: Add option for range of allowed cell coordinates instead of using the entire TileMap?
 
 	# Validation
@@ -1102,6 +1128,9 @@ static func populateTileMap(map: TileMapLayer, sceneToCopy: PackedScene, numberO
 
 	var parent:  Node2D = parentOverride if parentOverride else map
 	var newNode: Node2D
+
+	var minCoordinates: Vector2i = mapRect.position
+	var maxCoordinates: Vector2i = mapRect.end - Vector2i.ONE
 	var coordinates:  Vector2i
 	var nodesSpawned: Dictionary[Vector2i, Node2D]
 
@@ -1113,14 +1142,14 @@ static func populateTileMap(map: TileMapLayer, sceneToCopy: PackedScene, numberO
 		# TBD: A more efficient way?
 
 		coordinates = Vector2i(
-			randi_range(0, mapRect.size.x - 1),
-			randi_range(0, mapRect.size.y - 1))
+			randi_range(minCoordinates.x, maxCoordinates.x),
+			randi_range(minCoordinates.y, maxCoordinates.y))
 
 		# NOTE: No chance of an infinite loop because we checked numberOfCopies <= totalCells
 		while(nodesSpawned.get(coordinates)):
 			coordinates = Vector2i(
-				randi_range(0, mapRect.size.x - 1),
-				randi_range(0, mapRect.size.y - 1))
+				randi_range(minCoordinates.x, maxCoordinates.x),
+				randi_range(minCoordinates.y, maxCoordinates.y))
 
 		# Position
 
@@ -1146,8 +1175,20 @@ static func populateTileMap(map: TileMapLayer, sceneToCopy: PackedScene, numberO
 ## Returns a [Dictionary] of the nodes that were created, with their cell coordinates as the keys.
 ## TIP: Call [method Tools.findRandomTileMapCells] to get an array of random cells.
 ## TIP: To spawn scenes at random coordinates all over the map with a fixed number of copies, call [method Tools.populateTileMap]
-static func populateTileMapCells(map: TileMapLayer, cellCoordinates: Array[Vector2i], sceneToCopy: PackedScene, maximumNumberOfCopies: int, spawnChance: float = 1.0, parentOverride: Node = null, groupToAddTo: StringName = &"") -> Dictionary[Vector2i, Node2D]:
+## NOTE: If [param cellCoordinates] contains duplicate coordinates, only 1 copy is created per coordinate,
+## but the effective [param spawnChance] will be higher for duplicate coordinates!
+static func populateTileMapCells(
+	map:			TileMapLayer, 
+	cellCoordinates:Array[Vector2i],
+	sceneToCopy:	PackedScene,
+	maximumNumberOfCopies: int,
+	spawnChance:	float 		= 1.0,
+	parentOverride:	Node2D		= null,
+	groupToAddTo:	StringName	= &"") -> Dictionary[Vector2i, Node2D]:
+	
 	# Validation
+
+	if maximumNumberOfCopies < 1: return {}
 
 	if not sceneToCopy:
 		Debug.printWarning("Tools.populateTileMapCells(): No sceneToCopy", str(map))
@@ -1168,6 +1209,21 @@ static func populateTileMapCells(map: TileMapLayer, cellCoordinates: Array[Vecto
 	var nodesSpawned: Dictionary[Vector2i, Node2D]
 
 	for coordinates in cellCoordinates:
+		# maximumNumberOfCopies == 0 is guarded at the top of the function, so we'll recheck it at the end of this loop
+
+		# Did we already spawn a node at the same coordinates?
+		if nodesSpawned.has(coordinates):
+			var existingNode := nodesSpawned[coordinates]
+			# Is the node still valid?
+			if is_instance_valid(existingNode): 
+				# Warn if the `cellCoordinates` array has duplicate items
+				Debug.printWarning(str("Tools.populateTileMapCells(): Node already spawned @", coordinates, ": ", nodesSpawned[coordinates]), str(map))
+				# TBD: Allow multiple copies at the same coordinates? But that would make the return Dictionary omit duplicates..
+				# NOTE: BUGRISK: The effective `spawnChance` will be higher for duplicate coordinates!
+				continue
+			else: # If the node is no longer valid, just remove the coordinates from the "already spawned" list and spawn again
+				nodesSpawned.erase(coordinates)
+
 		# PERFORMANCE: Roll the chance before doing all the other checks and calculations
 		if spawnChance < 1.0 and not randf() < spawnChance: continue # TBD: Should this be an integer?
 
@@ -1205,15 +1261,18 @@ static func populateTileMapCells(map: TileMapLayer, cellCoordinates: Array[Vecto
 static func setNewStyleBoxColor(control: Control, color: Color, styleBoxName: StringName = &"fill", propertyName: StringName = &"bg_color") -> StyleBox:
 	var styleBox: StyleBox = control.get_theme_stylebox(styleBoxName)
 	if not styleBox:
-		Debug.printWarning(str("GlobalUI.setStyleBoxColor(): Cannot get StyleBox: ", styleBoxName), control)
+		Debug.printWarning(str("Tools.setNewStyleBoxColor(): Cannot get StyleBox: ", styleBoxName), control)
 		return null
 
 	if styleBox is StyleBoxFlat:
 		var newStyleBox: StyleBox = styleBox.duplicate() # NOTE: Don't want to change the color of ALL controls sharing the same StyleBox!
 		newStyleBox.set(propertyName, color)
 		control.add_theme_stylebox_override(styleBoxName, newStyleBox)
-
-	return styleBox
+		return newStyleBox
+	else:
+		# TBD: Handle other StyleBox variants?
+		Debug.printWarning(str("Tools.setNewStyleBoxColor(): Unsupported StyleBox type: ", styleBox), control)
+		return null
 
 
 ## Sets the text of [Label]s from a [Dictionary].
@@ -1227,17 +1286,19 @@ static func setLabelsWithDictionary(labels: Array[Label], dictionary: Dictionary
 	for label: Label in labels:
 		if not label: continue
 
-		var namePrefix: String = label.name.trim_suffix("Label").to_lower()
+		var namePrefix:		 String  = label.name.trim_suffix("Label").to_lower()
 		var dictionaryValue: Variant = dictionary.get(namePrefix)
+		var valueText:		 String
 
-		label.text = namePrefix + ":" if shouldShowPrefix else "" # TBD: Space after colon?
-
-		if dictionaryValue:
-			label.text += str(dictionaryValue)
-			if shouldHideEmptyLabels: label.visible = true # Automatically show non-empty labels in case they were already hidden
+		if dictionary.has(namePrefix): # NOTE: Do NOT check `dictionaryValue` because then values like `0`, `false`, empty strings will be considered non-existent!
+			valueText = str(dictionaryValue) if dictionaryValue != null else ""
 		else:
-			label.text += ""
-			if shouldHideEmptyLabels: label.visible = false
+			valueText = ""
+
+		label.text  = namePrefix + ":" if shouldShowPrefix else "" # TBD: Space after colon?
+		label.text += valueText
+		if shouldHideEmptyLabels: label.visible = not valueText.is_empty() # Hides missing keys AND empty/false/zero values. Also automatically shows non-empty labels in case they were hidden before
+
 
 
 ## Displays the values of the specified [Object]'s properties in different [Label]s.
@@ -1304,17 +1365,18 @@ static func replaceStrings(sourceString: String, substitutions: Dictionary[Strin
 
 ## "Rolls" a random integer number from 1…100 (inclusive) and returns `true` if the result is less than or equal to the specified [param chancePercent].
 ## i.e. If the chance is 10% then a roll of 1…10 will succeed but 11…100 (90 possibilities) will fail.
-func rollChance(chancePercent: int) -> bool:
+static func rollChance(chancePercent: int) -> bool:
 	return randi_range(1, 100) <= chancePercent
 
 
 ## Returns a copy of a number wrapped around to the [param minimum] or [param maximum] value if it exceeds or goes below either limit (inclusive).
 ## May be used to cycle through a range by adding/subtracting an offset to [param current] such as +1 or -1. The number may be an array index or `enum` state, or a sprite position to wrap it around the screen Pac-Man-style.
+## If [param minimum] > [param maximum] then [param current] is returned unmodified.
 static func wrapInteger(minimum: int, current: int, maximum: int) -> int:
 	# NOTE: Cannot use Godot's pingpong() because it "bounces" not "wraps"
 	if minimum > maximum:
 		Debug.printWarning(str("wrapInteger(): minimum ", minimum, " > maximum ", maximum, ", returning current: ", current))
-		return current
+		return current # TBD: Return `current` or `minimum` or `maximum` in case of invalid arguments??
 	elif minimum == maximum: # If there is no difference between the range, just return either.
 		return minimum
 
@@ -1322,6 +1384,12 @@ static func wrapInteger(minimum: int, current: int, maximum: int) -> int:
 
 	# THANKS: rubenverg@Discord, lololol__@Discord
 	return posmod(current - minimum, maximum - minimum + 1) + minimum # +1 to make limits inclusive
+
+
+## Wraps a [float] value around if it is below 0.0 or higher than 1.0
+static func wrapUnitFloat(value: float) -> float:
+	if value < 0.0 or value > 1.0: return fposmod(value, 1.0)
+	else: return value
 
 #endregion
 
@@ -1427,18 +1495,21 @@ static func getResourcesInFolder(folderPath: String, filter: String = "") -> Pac
 	return filteredResources
 
 
-## Returns the path of the specified object, after replacing its extension with the specified string.
-## May be used for quickly getting the accompanying `.gd` Script for a `.tscn` Scene or `.tres` Resource, if they share the same file name.
-## If the resulting file with the replaced extension does not exist, an empty string is returned.
+## Returns a file path after replacing the extension with the specified string.
+## If the resulting path with the alternative extension does not exist, an empty string is returned.
+## TIP: EXAMPLE: Getting the accompanying `.gd` [Script] for a `.tscn` [Scene] or `.tres` [Resource], IF they share the same file name.
+## NOTE: Does NOT rename the actual file.
 static func getPathWithDifferentExtension(sourcePath: String, replacementExtension: String) -> String:
 	# var sourcePath: String = object.get_script().resource_path
 	if sourcePath.is_empty(): return ""
 
-	var sourceExtension: String = "." + sourcePath.get_extension() # Returns the file extension without the leading period
-	var replacementPath: String = sourcePath.replacen(sourceExtension, replacementExtension) # The `N` in `replacen` means case-insensitive
+	# First, sanitize the `replacementExtension`
+	if not replacementExtension.is_empty() and not replacementExtension.begins_with("."):
+		replacementExtension = "." + replacementExtension
 
+	var replacementPath: String = sourcePath.get_basename() + replacementExtension
 	Debug.printDebug(str("getPathWithDifferentExtension() sourcePath: ", sourcePath, ", replacementPath: ", replacementPath))
-
+	
 	if FileAccess.file_exists(replacementPath): return replacementPath
 	else:
 		Debug.printDebug(str("replacementPath does not exist: ", replacementPath))
@@ -1479,14 +1550,13 @@ static func skipTimer(timer: Timer) -> float:
 ## TIP: May be used to cycle through a list of possible options, such as [42, 69, 420, 666]
 ## WARNING: The cycle may get "stuck" if there are 2 or more identical values in the list: [a, b, b, c] will always only return the 2nd `b`
 static func cycleThroughList(value: Variant, list: Array[Variant]) -> Variant:
-	if not value or list.is_empty(): return null
+	if list.is_empty(): return null # NOTE: Do NOT check `if value` because that will exclude 0, `false` and empty strings etc.!
 
-	var index: int = list.find(value)
-
-	if index >= 0: # -1 means value not found.
-		if list.size() == 1: return value
-		else: return list[index+1] if index < list.size()-1 else list[0] # Wrap around if at the end of the array.
-	else: return null
+	var  index: int = list.find(value)
+	if   index < 0:					return null		# -1 means `value` not found
+	elif list.size() == 1:			return value	# If there's only 1 item, there's nothing else to return
+	elif index < list.size() - 1:	return list[index + 1] # Return the next item from the array
+	else:							return list[0]	# Wrap around if `value` is at the end of the array
 
 
 ## Resets a [Resource] to its saved default values by reloading its `.tres` file from the project bundle.
