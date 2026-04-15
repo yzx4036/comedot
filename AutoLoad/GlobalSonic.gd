@@ -128,7 +128,7 @@ func createAudioPlayer(
 func createAudioPlayerPool() -> Array[AudioStreamPlayer2D]:
 	# Delete existing children
 	self.audioPlayers.clear()
-	Tools.removeAllChildren(sounds)
+	NodeTools.removeAllChildren(sounds)
 
 	# Fill the pool
 	for count in maximumNumberOfSounds:
@@ -215,7 +215,7 @@ func playMusicFile(path: String) -> AudioStream:
 
 ## Returns a list of all the ".mp3" files found at [param path], which defaults to [member musicFolder].
 func getMusicFilesFromFolder(path: String = self.musicFolder) -> PackedStringArray:
-	var files: PackedStringArray = Tools.getResourcesInFolder(path, ".mp3") # TBD: Allow other extensions?
+	var files: PackedStringArray = FileSystemTools.getResourcesInFolder(path, ".mp3") # TBD: Allow other extensions?
 	if debugMode: Debug.printAutoLoadLog(str("getMusicFilesFromFolder(", path, "): ", files.size(), " ", files))
 	return files
 
@@ -335,7 +335,7 @@ func beep(pulseHz: float = 440.0, duration: float = 1.0, volume: float = 0.5) ->
 	# If you still want to use this class from GDScript, consider using a lower `mix_rate` such as 11,025 Hz or 22,050 Hz.
 
 	# Clamp & Validate
-	pulseHz  = clamp(pulseHz,  20,   20000) # Human hearing range
+	pulseHz  = clamp(pulseHz,  20,   22050) # Human hearing range, apprently
 	duration = clamp(duration, 0.01, 10)  # 10 milliseconds to 10 seconds
 	volume   = clamp(volume,   0,    1)   # 0% to 100%
 
