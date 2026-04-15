@@ -1,4 +1,4 @@
-﻿# Autoload and Start Flow
+# Autoload and Start Flow
 
 ## Scope
 Framework startup path from `project.godot` main scene to first frame scene handoff.
@@ -40,4 +40,3 @@ Framework startup path from `project.godot` main scene to first frame scene hand
 - [ ] Startup scene root script extends `Start` and keeps `super` calls.
 - [ ] Required AutoLoads are enabled in `project.godot`.
 - [ ] Transition destination (`GameFrame.tscn`) resolves and loads.
-

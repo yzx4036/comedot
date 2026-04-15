@@ -1,4 +1,4 @@
-﻿# Note
+# Note
 
 Comedot learning notes index.
 
@@ -17,4 +17,3 @@ Comedot learning notes index.
 - Use one topic per file.
 - Prefer `PascalCase.md` in English for compatibility.
 - Start each note from `Templates/NoteTemplate.md`.
-
