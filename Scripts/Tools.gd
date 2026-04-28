@@ -175,17 +175,17 @@ static func findMethodInScript(script: Script, methodName: StringName) -> bool: 
 
 ## Convert a [NodePath] from the `./` form to the absolute representation: `/root/` INCLUDING the property path if any.
 static func convertRelativeNodePathToAbsolute(parentNodeToConvertFrom: Node, relativePath: NodePath) -> NodePath:
-	var absoluteNodePath: String = parentNodeToConvertFrom.get_node(relativePath).get_path()
-	var propertyPath: String = str(":", relativePath.get_concatenated_subnames())
-	var absolutePathIncludingProperty: NodePath = NodePath(str(absoluteNodePath, propertyPath))
+	var absoluteNodePath: NodePath = parentNodeToConvertFrom.get_node(relativePath).get_path()
+	var subnames:		  String   = relativePath.get_concatenated_subnames()
 
 	# DEBUG:
-	#Debug.printLog(str("Tools.convertRelativeNodePathToAbsolute() parentNodeToConvertFrom: ", parentNodeToConvertFrom, \
+	# Debug.printLog(str("Tools.convertRelativeNodePathToAbsolute() parentNodeToConvertFrom: ", parentNodeToConvertFrom, \
 		#", relativePath: ", relativePath, \
 		#", absoluteNodePath: ", absoluteNodePath, \
 		#", propertyPath: ", propertyPath))
 
-	return absolutePathIncludingProperty
+	if subnames.is_empty(): return absoluteNodePath
+	else: return NodePath(str(absoluteNodePath, ":", subnames))
 
 
 ## Splits a [NodePath] into an Array of 2 paths where index [0] is the node's path and [1] is the property chain, e.g. `/root:size:x` → [`/root`, `:size:x`]
@@ -219,9 +219,9 @@ static func getRectCorner(rectangle: Rect2, compassDirection: Vector2i) -> Vecto
 
 
 ## Returns a [Rect2] representing the boundary/extents of the FIRST [CollisionShape2D] child of a [CollisionObject2D] (e.g. [Area2D] or [CharacterBody2D]).
-## NOTE: The rectangle is in the coordinates of the shape's [CollisionShape2D] container, with its anchor at the CENTER.
-## Works most accurately & reliably for areas with a single [RectangleShape2D].
-## Returns: A [Rect2] of the bounds. On failure: a rectangle with size -1 and the position set to the [CollisionObject2D]'s local position.
+## NOTE: The rectangle is in the LOCAL coordinates of the [CollisionObject2D]
+## Best suited for areas with a single [RectangleShape2D], in which case the [Shape2D]'s anchor/origin will be at the center of the returned rectangle.
+## Returns: A [Rect2] of the bounds. On failure: a [Rect2] with size -1 and invalid area.
 static func getShapeBounds(node: CollisionObject2D) -> Rect2:
 	# HACK: Sigh @ Godot for making this so hard...
 
@@ -230,9 +230,11 @@ static func getShapeBounds(node: CollisionObject2D) -> Rect2:
 
 	if not shapeNode:
 		Debug.printWarning("getShapeBounds(): Cannot find a CollisionShape2D child", node)
-		return Rect2(node.position.x, node.position.y, -1, -1) # Return an invalid negative-sized rectangle matching the node's origin.
+		return Rect2(0, 0, -1, -1) # Return an invalid negative-sized rectangle matching the node's origin.
 
-	return shapeNode.shape.get_rect()
+	var shapeBounds: Rect2 = shapeNode.shape.get_rect()
+	shapeBounds.position  += shapeNode.position # Offset the rectangle to match the [Shape2D]'s position in the container
+	return shapeBounds
 
 
 ## Returns a [Rect2] representing the combined rectangular boundaries/extents of ALL the [CollisionShape2D] children of an a [CollisionObject2D] (e.g. [Area2D] or [CharacterBody2D]).
@@ -533,9 +535,24 @@ static func getRandomQuantizedColor() -> Color:
 
 
 ## Returns the global position of the top-left corner of the screen in the camera's view.
+## Handles zoom, rotation, limits etc.
+## IMPORTANT: Assumes the [param camera] is the active [Camera2D] for its [Viewport]
 static func getScreenTopLeftInCamera(camera: Camera2D) -> Vector2:
-	var cameraCenter: Vector2 = camera.get_screen_center_position()
-	return cameraCenter - camera.get_viewport_rect().size / 2
+	# Convert the viewport-space point into the camera canvas's world coordinates.
+	# This uses the actual current canvas transform, so it respects rotation, zoom,
+	# smoothing, drag margins, limits, and other camera-driven view changes.
+	return camera.get_canvas_transform().affine_inverse() \
+		 * camera.get_viewport_rect().position # The viewport's top-left corner in viewport coordinates
+
+
+## Returns the global position of a specific corner of the screen in the camera's view.
+## Handles zoom, rotation, limits etc.
+## [param corner] uses normalized viewport coordinates: (0,0) = top-left, (1,1) = bottom-right.
+## IMPORTANT: Assumes the [param camera] is the active [Camera2D] for its [Viewport]
+static func getScreenCornerInCamera(camera: Camera2D, corner: Vector2) -> Vector2:
+	var viewportRect: Rect2 = camera.get_viewport_rect()
+	return camera.get_canvas_transform().affine_inverse() \
+		* (viewportRect.position + (viewportRect.size * corner))
 
 #endregion
 
@@ -593,10 +610,10 @@ static func setLabelsWithDictionary(labels: Array[Label], dictionary: Dictionary
 
 
 
-## Displays the values of the specified [Object]'s properties in different [Label]s.
+## Displays non-null values of the specified [Object]'s properties in different [Label]s.
 ## Each [Label] must have EXACTLY the same case-sensitie name as a matching property in [param object]: `isEnabled` but NOT `IsEnabled` or `EnabledLabel` etc.
 ## TIP: Example: May be used to quickly display a [Resource] or [Component]'s data in a UI [Container].
-## RETURNS: The number of [Label]s with names matching [param object] properties.
+## RETURNS: The number of [Label]s with names matching non-null properties of the [param object]
 ## For a script to attach to a UI [Container], use "PrintPropertiesToLabels.gd"
 static func printPropertiesToLabels(object: Object, labels: Array[Label], shouldShowPropertyNames: bool = true, shouldHideNullProperties: bool = true, shouldUnhideAvailableLabels: bool = true) -> int:
 	var value: Variant # NOTE: Should not be String so we can explicitly check for `null`
@@ -610,7 +627,8 @@ static func printPropertiesToLabels(object: Object, labels: Array[Label], should
 		if shouldShowPropertyNames: label.text = label.name + ": "
 		else: label.text = ""
 
-		# NOTE: Explicitly check for `null` to avoid cases like "0.0" being treated as a non-existent property.
+		# NOTE: Explicitly check for `null` so values like 0, `false`, and empty strings still count as valid values
+		# BUGRISK: Properties that exist but are `null` may be considered as non-existent!
 		if value != null:
 			label.text += str(value)
 			if shouldUnhideAvailableLabels: label.visible = true
