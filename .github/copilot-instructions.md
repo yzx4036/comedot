@@ -3,6 +3,7 @@
 ## What This Repository Is
 - Comedot is a reusable Godot 2D gameplay framework centered on composition (Entities + Components), not inheritance-heavy monolithic scripts.
 - The framework lives outside `Game/`; `Game/` is game-specific and should only be changed when the task is explicitly about a game implementation.
+- `Game/` is intentionally ignored by the root Comedot `.gitignore`; game project folders under it are expected to be independent Git repositories. Keep framework and game Git workflows separate.
 - Use `project.godot` as the runtime truth, especially `config/features` (currently `4.7`) and enabled autoloads/plugins.
 
 
@@ -81,6 +82,6 @@
 ## Scope and Review Guardrails
 - Ignore `Temporary/` and `Lab/` unless explicitly requested.
 - Ignore `Game/` unless task is game-specific.
+- Do not use root repository `git status` as a required recurring check for `Game/` work. The root repo intentionally ignores `Game/`; inspect the relevant nested game repository only when the task requires Git state there.
 - Treat `@experimental` code findings/changes as lower priority unless stable code depends on them.
 - Do not add generic "best practices" that conflict with existing repository conventions; mirror current codebase behavior.
-

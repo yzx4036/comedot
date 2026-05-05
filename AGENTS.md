@@ -22,6 +22,7 @@
 - `Temporary/`, `Lab/`: Transient experiments. All files in these folders should always be ignored. Disregard any errors or warnings in files in those folders. If a file in these folders prevents compilation/parsing/export, consider removing that file.
 - `Scripts/Tools/Tools.gd`, `*Tools.gd`: Files containing global static standalone helper functions for builtin Godot nodes & types. This is a workaround for the inability to extend builtin Godot types with custom methods without using subclasses.
 - `Game/`: Game-specific files that are NOT part of the Comedot framework itself. These files should be ignored when referring to the framework, and only accessed when considering an actual game being made with Comedot. Everything outside the `Game/` subtree is part of the framework that is shared between multiple games. When generating code for a game, only the files in the `Game/` subtree should be modified. `Game/AGENTS.override.md` takes precedence for any activity inside the `Game/` subtree.
+- The root Comedot repository intentionally ignores `Game/` via `.gitignore`: game project folders under `Game/` are managed as independent Git repositories. Keep this separation intact. Framework tasks should not use the root repository Git state to reason about `Game/` changes, and do not repeatedly run root `git status` just to check `Game/` work.
 
 
 ## Subsystems
@@ -58,6 +59,7 @@
 - Not all `null`-able references need to be guarded: In some cases, a crash is better than a warning or a silent failure/skip, specially if it's a core object which should never be missing at runtime under normal circumstances.
 - Ignore the contents of `Game/` unless the prompt and context involves a specific game being made with the main framework project.
 - The contents of `Game/` are subject to the instructions in `Game/AGENTS.override.md`
+- Treat `Game/` as a separate project/repository boundary. For framework review, ignore `Game/` and its Git state. For game work, use `Game/AGENTS.override.md` and the active game project's own workflow instead of the root Comedot repository state.
 - If an inline source code renderer does not support syntax highlighting for GDScript, use Swift syntax highlighting for fenced GDScript code blocks, as it closely resembles GDScript highlighting.
 
 ## Coding Style & Naming Conventions

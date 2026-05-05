@@ -49,6 +49,8 @@ godot-mcp get_current_scene
 全局注意事项：
 - 对需要数组或对象参数的工具，优先使用 `--params-json` 传参；直接把数组写成普通字符串可能会触发 MCP 参数校验失败。
 - 已知需要这样处理的工具包括 `simulate_input_sequence` 的 `sequence` 参数。
+- 根 Comedot 仓库通过 `.gitignore` 有意忽略 `Game/`。`Game/` 下的具体游戏项目按独立 Git 仓库管理，AI 自动化流程要保持框架仓库与游戏仓库分离。
+- 框架任务不需要每次用根仓库 `git status` 检查 `Game/` 状态；只有在需要确认框架层文件变化时才检查根仓库 Git 状态。游戏任务若需要 Git 状态，应在对应游戏子仓库中检查。
 
 
 ## Project Rules For Automation
@@ -155,7 +157,7 @@ godot-mcp rescan_filesystem
 godot-mcp get_editor_errors
 ```
 
-最后用 Git 检查实际文件变化：
+如果任务修改了框架层文件，再用根仓库 Git 检查实际文件变化。`Game/` 由独立子仓库管理，不要用根仓库状态判断游戏文件：
 
 ```powershell
 git status --short
@@ -631,7 +633,7 @@ Before editing through CLI:
 6. Save the scene only after checking the intended changes.
 7. Run project or target scene when behavior changed.
 8. Read Output and Errors panels.
-9. Check git status.
+9. If framework files changed, check root repository Git status. If only `Game/` changed, use that game project's own Git workflow when needed.
 ```
 
 For current game development, the default target should be:
