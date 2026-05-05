@@ -1,4 +1,5 @@
 ## Helper functions to assist with common tasks involving [TileMap], [TileMapLayer] or [TileMapCellData]
+## In the future, these functions & types may be incorporated into the builtin Godot API as native code or via custom extensions.
 
 class_name TileMapTools
 extends GDScript # NOTE: DESIGN: We cannot `extends TileMapLayer` because we want these functions to be globally available, not just for instances of a special subclass.
@@ -19,23 +20,12 @@ static func checkTileMapCoordinates(map: TileMapLayer, coordinates: Vector2i) ->
 
 
 ## Returns the rectangular bounds of a [TileMapLayer] containing all of its "used" or "painted" cells, in the coordinate space of the TileMap's parent.
-## ALERT: This does not include scaling/rotation/transforms may not correspond to the visual position of a cell/tile, i.e. it ignores the [member TileData.texture_origin] property of individual tiles.
+## ALERT:  May not correspond to the visual position of a cell/tile, i.e. it ignores the [member TileData.texture_origin] property of individual tiles.
 static func getTileMapScreenBounds(map: TileMapLayer) -> Rect2: # TBD: Rename to getTileMapBounds()?
-	# TODO: Handle scaling/rotation/etc.
 	var cellGrid:	Rect2 = Rect2(map.get_used_rect()) # Convert integer `Rect2i` to float to simplify calculations
-	if not cellGrid.has_area(): return Rect2() # Null area if there are no cells
-
-	var screenRect:	Rect2
+	if not cellGrid.has_area(): return RectTools.rect2Zero # Null area if there are no cells
 	var tileSize:	Vector2 = Vector2(map.tile_set.tile_size) # Convert integer `Vector2i` to float to simplify calculations
-
-	# The points will initially be in the TileMap's own space
-	screenRect.position  = cellGrid.position * tileSize
-	screenRect.size		 = cellGrid.size	 * tileSize
-
-	# Offset the bounds by the map's own position in the map's parent's space
-	screenRect.position += map.position
-
-	return screenRect
+	return map.transform * Rect2(cellGrid.position * tileSize, cellGrid.size * tileSize).abs() # Apply all transforms including rotation etc.
 
 
 ## Checks if a [Vector2] is inside the rectangular bounds of a [TileMapLayer]'s "used" or "painted" cells.
@@ -441,37 +431,37 @@ static func populateTileMap(
 
 		# If the number of copies to spawn is less than the total number of cells, we need to choose random cells
 		if numberOfCopies < totalCells:
-			# 1: Find an unused cell
-			# PERFORMANCE: Use a "sparse" Fisher-Yates algorithm to pick unique random cells without retrying already selected cells,
+			# 1: Find an unused cell.
+			# PERFORMANCE: Use a "sparse" Fisher-Yates algorithm to pick unique random cells without retrying already selected cells.
 			# and without allocating an Array containing every cell; which would reduce performance when used on large TileMaps.
 
-			# 1.1: Roll one slot from the still available range
+			# 1.1: Roll one slot from the still available range.
 			# Example: [A,B,C,D]: select B
 			selectedCellIndex = randi_range(0, remainingCellCount - 1)
 
-			# 1.2: Resolve that slot to the actual cell index
-			# Instead of using an Array of all coordinates or indices, assume that every slot points to itself unless swappedCellIndices says otherwise:
+			# 1.2: Resolve that slot to the actual cell index.
+			# Instead of using an Array of all coordinates or indices, assume that every slot points to itself unless `swappedCellIndices` says otherwise:
 			# If the slot was never swapped (i.e. the key doesn't exist) then it represents itself.
 			cellIndex = swappedCellIndices.get(selectedCellIndex, selectedCellIndex)
 
-			# 1.3: Remove the selected slot by replacing it with the last available slot
-			# This is the same idea as swapping selectedIndex with the end of an array, then shrinking the array by one.
+			# 1.3: Remove the selected slot by replacing it with the last available slot.
+			# This is the same idea as swapping `selectedIndex` with the end of an array, then shrinking the array by 1.
 			# Example: [A,D,C | B]: B selected & "removed" from the "pool" because the `remainingCellCount` is decreased
 			# The Dictionary becomes: swappedCellIndices[1] = D
 			remainingCellCount -= 1
 			swappedCellIndices[selectedCellIndex] = swappedCellIndices.get(remainingCellCount, remainingCellCount)
 
-			# 1.4: The old last slot is now outside the available range, so it can be forgotten
+			# 1.4: The old last slot is now outside the available range, so it can be forgotten.
 			# Example: [A,D,C]
 			swappedCellIndices.erase(remainingCellCount)
 
-			# 1.5: Convert the flat cell index back into x/y offset inside the TileMap Rect
-			# Then convert the offset inside the used rectangle to actual TileMap coordinates
+			# 1.5: Convert the flat cell index back into x/y offset inside the TileMap Rect.
+			# Then convert the offset inside the used rectangle to actual TileMap coordinates.
 			coordinates = mapRect.position + Vector2i(
 				cellIndex % mapRect.size.x,
 				cellIndex / mapRect.size.x) # CHECK: Should we use `floori(float(cellIndex) / mapRect.size.x)`? Is floori() the same as integer trunctation anyway? e.g. 5 / 2 == 2 instead of 2.5
 			
-			# 1.6: On the next pass, [A,D,C] → Select A, swap with C → [C,D | A,B] and so on
+			# 1.6: On the next pass, [A,D,C] → Select A, swap with C → [C,D | A,B] and so on...
 
 		# If the number of copies is the same as the total number of cells, just choose all cells sequentially
 		else:

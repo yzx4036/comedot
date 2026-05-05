@@ -39,7 +39,9 @@ extends Node2D # An "entity" would always have a visual presence, so it cannot b
 
 ## A dictionary of {StringName:Component} where the key is the `class_name` of each Component, which may be discovered via [method Script.get_global_name].
 ## Updated by [method registerComponent] which is called by each COMPONENT itself during the component's [constant NOTIFICATION_PARENTED].
-## Used by components to quickly find other sibling components, without a dynamic search at runtime.
+## PERFORMANCE: Used by components to quickly find other sibling components, without a dynamic search at runtime.
+## NOTE: Does NOT resolve subclasses! i.e. a [ShieldedHealthComponent] will not be accessed by searching for [HealthComponent]
+## TIP: Call [method getComponent] with `findSubclasses` or [method findFirstComponentSubclass] to find subclasses.
 var components: Dictionary[StringName, Component]
 
 ## A dictionary of functions that should be called only once per frame, for example [member CharacterBody2D.move_and_slide] on a [CharacterBody2D].
@@ -72,15 +74,12 @@ func _notification(what: int) -> void:
 			# UNUSED: unParented.emit() # Not needed yet
 
 
-func _ready() -> void:
-	printDebug("_ready()")
-
-
 ## Called when the Entity enters the Scene Tree for the first time.
 ## NOTE: Called BEFORE Components and child nodes are loaded from the Scene.
 func _enter_tree() -> void:
 	# NOTE: This should not be `_ready()` because `_ready()` is called AFTER child nodes are loaded from the packed scene,
 	# so signals like `child_entered_tree` will be missed for the initial components.
+	initializeLog()
 	printDebug("_enter_tree()")
 	if not self.is_in_group(Global.Groups.entities): self.add_to_group(Global.Groups.entities, true) # persistent
 	printLog("􀈅 [b]_enter_tree() → " + str(self.get_parent()) + "[/b]", self.logFullName)
@@ -90,10 +89,17 @@ func _enter_tree() -> void:
 ## WARNING: When overriding in a subclass, call `super.connectSignals()`,
 ## but do NOT call [method Entity.connectSignals] manually from [method _enter_tree] or [method _ready], to ensure that all signals are connected and ONLY ONCE.
 func connectSignals() -> void:
-	printDebug("connectSignals()")
+	pass
 	# TBD: UNUSED: Unneeded for now
+	# printDebug("connectSignals()")
 	# Tools.connectSignal(self.child_entered_tree, self.onChildEnteredTree)
 	# Tools.connectSignal(self.child_exiting_tree, self.onChildExitingTree)
+
+
+## Stub that does nothing by default. If overridden, subclasses MUST call `super._ready()`
+func _ready() -> void:
+	printDebug("_ready()")
+	# TBD: Fire some kind of special "Entity Ready" signal or callback here for all Components?
 
 
 ## NOTE: Any subclass calling `super._physics_process()` must be aware that this method disables the per-frame processing by calling `set_physics_process(false)`
@@ -208,8 +214,9 @@ func hasComponent(type: Script) -> bool:
 	return self.components.keys().has(type.get_global_name())
 
 
-## Checks the [member Entity.components] [Dictionary] after converting the [param type] to a [StringName] key.
-## NOTE: Set [param findSubclasses] to `true` to find subclasses which inherit the specified type, by calling [method Entity.findFirstComponentSubclass]
+## Returns a [Component] from the [member Entity.components] [Dictionary] after converting the [param type] to a [StringName] key.
+## Returns `null` if there is no matching key. NOTE: Unlike a direct [Dictionary] lookup, this method does not crash if a component/key does not exist.
+## TIP: To include subclasses such as [ShieldedHealthComponent] when searching for [HealthComponent], set [param findSubclasses] to `true` to use [method Entity.findFirstComponentSubclass] when an exact mtch isn't found.
 func getComponent(type: Script, findSubclasses: bool = false) -> Component:
 	# NOTE: The function is named "get" instead of "find" because "find" may imply a slower search of all children.
 	var typeName: StringName = type.get_global_name()
@@ -217,6 +224,7 @@ func getComponent(type: Script, findSubclasses: bool = false) -> Component:
 	if not foundComponent and findSubclasses:
 		if debugMode: printDebug(str("getComponent(): ", typeName, " not found, trying findFirstComponentSubclass()"))
 		foundComponent = self.findFirstComponentSubclass(type)
+	# If no match, return `null` & let the caller handle crashing or logging a warning etc.
 	return foundComponent
 
 
@@ -373,7 +381,7 @@ func toggleComponents(componentTypes: Array[Script], overrideIsEnabled: Variant 
 ## Returns the first child node which matches the specified [param type].
 ## If [param includeEntity] is `true` (default) then this ENTITY ITSELF may be returned if it is node of a matching type. Useful for [Sprite2D] or [Area2D] etc. nodes with the `Entity.gd` script.
 ## NOTE: Also returns any SUBCLASSES which inherit from the specified [param type].
-## WARNING: TIP: [method Entity.findFirstComponentSubclass] is faster when searching for components including subclasses, as it only searches the [member Entity.components] dictionary.
+## ALERT: TIP: PERFORMANCE: [method Entity.findFirstComponentSubclass] is faster when searching for components including subclasses, as it only searches the [member Entity.components] dictionary.
 func findFirstChildOfType(type: Variant, includeEntity: bool = true) -> Node:
 	var result: Node = NodeTools.findFirstChildOfType(self, type, includeEntity)
 	if debugMode: printDebug(str("findFirstChildOfType(", type, "): ", result))
@@ -553,21 +561,35 @@ func spawnNode(node: Node, positionOffset: Vector2 = Vector2.ZERO, copyZIndex: b
 
 ## Enables more detailed debugging information for this entity, such as verbose log messages. Subclasses may add their own information or may not respect this flag.
 ## NOTE: Even though [method printDebug] also checks this flag, this flag should be checked before calls to `printDebug()` with functions such as `str()` that might reduce performance.
-@export var debugMode: bool = false
+@export var debugMode:		bool = false
 
 
-var logName: String: # Static assignment would set the property before the `name` is set.
-	# Entities just need to show their name as they're almost always the same type/eclass.
-	get: return "􀕽 " + self.name
+const logSymbol:			String = "􀕽" # NOTE: Using Apple's SF Symbols, currently only supported on macOS/iOS/etc.
+var logName:				String
+var logFullName:			String ## A detailed name for logging, including the node's name in the scene, instance, and the script's `class_name`.
+var randomDebugColor:		Color  ## Used by logs and debugging tools etc. to distinguish different entities from each other.
+var randomDebugColorCode:	String
+var isLoggingInitialized:	bool
 
-## A more detailed name including the node name, instance, and the script's `class_name`.
-var logFullName: String:
-	get: return str("􀕽 ", self, ":", self.get_script().get_global_name())
+
+func initializeLog() -> void:
+	if isLoggingInitialized: return
+	randomDebugColor	 = Tools.getRandomQuantizedColorHue(Tools.sequenceTenths, Tools.sequenceQuarters.slice(1).pick_random()) # Prevent low saturation
+	randomDebugColorCode = "[color=#" + randomDebugColor.to_html(false) + "]"
+	updateLogNames()
+	if not self.renamed.is_connected(self.updateLogNames): self.renamed.connect(self.updateLogNames, 0) # PERFORMANCE: Don't call Tools.connectSignal()
+	isLoggingInitialized = true
+
+
+func updateLogNames() -> void:
+	var logSymbolWithColor: String = randomDebugColorCode + logSymbol + "[/color] "
+	logName		= logSymbolWithColor + self.name # Entities just need to show their name, not their type, as they're almost always the same type/eclass
+	logFullName = str(logSymbolWithColor, self, ":", self.get_script().get_global_name())
 
 
 func printLog(message: String = "", object: Variant = self.logName) -> void:
 	if not isLoggingEnabled: return
-	Debug.printLog(message, object, "lightGreen", "green")
+	Debug.printLog(message, object, Global.Colors.logEntity, Global.Colors.logEntityName)
 
 
 ## Affected by [member debugMode], but NOT affected by [member isLoggingEnabled].
@@ -575,19 +597,19 @@ func printLog(message: String = "", object: Variant = self.logName) -> void:
 func printDebug(message: String = "") -> void:
 	# DESIGN: isLoggingEnabled is not respected for this method because we often need to disable common "bookkeeping" logs such as creation/destruction but we need debugging info when developing new features.
 	if not debugMode: return
-	Debug.printDebug(message, logName, "green")
+	Debug.printDebug(message, logName, Global.Colors.logEntityName)
 
 
 ## Calls [method Debug.printWarning]
 ## NOTE: Ignores [member isLoggingEnabled]
 func printWarning(message: String = "") -> void:
-	Debug.printWarning(message, logFullName, "green")
+	Debug.printWarning(message, logFullName, Global.Colors.logEntityName)
 
 
 ## Calls [method Debug.printError]
 ## NOTE: Ignores [member isLoggingEnabled]
 func printError(message: String = "") -> void:
-	Debug.printError(message, logFullName, "green")
+	Debug.printError(message, logFullName, Global.Colors.logEntityName)
 
 
 ## Logs an entry showing a variable's previous and new values, IF there is a change and [member debugMode].

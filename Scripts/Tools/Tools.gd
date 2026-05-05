@@ -1,10 +1,10 @@
 ## Helper functions for built-in Godot nodes and types to assist with common tasks.
 ## Most of this is stuff that should be built-in Godot but isn't :')
 ## and can't be injected into the base types such as Node etc. because GDScript doesn't have a feature like Swift's "extension" :(
+## In the future, these functions & types may be incorporated into the builtin Godot API as native code or via custom extensions.
 
 class_name Tools
 extends GDScript
-
 
 
 #region Constants
@@ -82,9 +82,18 @@ const plusMinusOne:				Array[int]	 = [-1, +1] # TBD: Name :')
 ## For use with [method Array.pick_random] with an optional scaling factor.
 const plusMinusOneFloat:		Array[float] = [-1.0, +1.0] # TBD: Name :')
 
-## A sequence of float numbers from -1.0 to +1.0 stepped by 0.1
-## TIP: Use [method Array.pick_random] to pick a random variation from this list for colors etc.
-const sequenceNegative1toPositive1stepPoint1: Array[float] = [-1.0, -0.9, -0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, +0.1, +0.2, +0.3, +0.4, +0.5, +0.6, +0.7, +0.8, +0.9, +1.0] # TBD: Better name pleawse :')
+
+## A sequence of [float] numbers from 0.0 to 1.0 in steps of 0.25
+const sequenceQuarters:			Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
+
+## A sequence of [float] numbers from 0.0 to 1.0 in steps of 0.2
+const sequenceFifths:			Array[float] = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+
+## A sequence of [float] numbers from 0.0 to 1.0 in steps of 0.1
+const sequenceTenths:			Array[float] = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+## A sequence of [float] numbers from -1.0 to +1.0 in steps of 0.1
+const sequenceTenthsSigned:		Array[float] = [-1.0, -0.9, -0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, +0.1, +0.2, +0.3, +0.4, +0.5, +0.6, +0.7, +0.8, +0.9, +1.0]
 
 #endregion
 
@@ -111,7 +120,7 @@ class Line: # UNUSED: Until Godot can support custom class @export :')
 ## Connects or reconnects a [Signal] to a [Callable] only if the connection does not already exist, to silence any annoying Godot errors about existing connections (presumably for reference counting).
 static func connectSignal(sourceSignal: Signal, targetCallable: Callable, flags: int = 0) -> int:
 	if not sourceSignal.is_connected(targetCallable):
-		return sourceSignal.connect(targetCallable, flags) # No idea what the return value is for.
+		return sourceSignal.connect(targetCallable, flags) # No idea what the return value is for
 	else:
 		return 0
 
@@ -147,21 +156,9 @@ static func callCustom(object: Object, functionName: StringName, ...arguments: A
 
 ## Returns a [StringName] with the `class_name` from a [Script] type.
 ## NOTE: This method is needed because we cannot directly write `SomeTypeName.get_global_name()` :(
+## TIP: PERFORMANCE: If needed frequently at runtime, replace calls to this method with the builtin API: `object.get_script().get_global_name()`
 static func getStringNameFromClass(type: Script) -> StringName:
 	return type.get_global_name()
-
-
-## Checks whether a script has a function/method with the specified name.
-## NOTE: Only checks for the name, NOT the arguments or return type.
-## ALERT: Use the EXACT SAME CASE as the method you need to find!
-static func findMethodInScript(script: Script, methodName: StringName) -> bool: # TBD: Should it be [StringName]?
-	# TODO: A variant or option to check for multiple methods.
-	# TODO: Check arguments and return type.
-	var methodDictionary: Array[Dictionary] = script.get_script_method_list()
-	for method in methodDictionary:
-		# DEBUG: Debug.printDebug(str("findMethodInScript() script: ", script, " searching: ", method))
-		if method["name"] == methodName: return true
-	return false
 
 #endregion
 
@@ -198,293 +195,10 @@ static func splitPathIntoNodeAndProperty(path: NodePath) -> Array[NodePath]:
 #endregion
 
 
-#region Area & Shape Geometry
-
-static func getRectCorner(rectangle: Rect2, compassDirection: Vector2i) -> Vector2:
-	var position:	Vector2 = rectangle.position
-	var center:		Vector2 = rectangle.get_center()
-	var end:		Vector2 = rectangle.end
-
-	match compassDirection:
-		CompassVectors.northWest:	return Vector2(position.x, position.y)
-		CompassVectors.north:		return Vector2(center.x, position.y)
-		CompassVectors.northEast:	return Vector2(end.x, position.y)
-		CompassVectors.east:		return Vector2(end.x, center.y)
-		CompassVectors.southEast:	return Vector2(end.x, end.y)
-		CompassVectors.south:		return Vector2(center.x, end.y)
-		CompassVectors.southWest:	return Vector2(position.x, end.y)
-		CompassVectors.west:		return Vector2(position.x, center.y)
-
-		_: return Vector2.ZERO
-
-
-## Returns a [Rect2] representing the boundary/extents of the FIRST [CollisionShape2D] child of a [CollisionObject2D] (e.g. [Area2D] or [CharacterBody2D]).
-## NOTE: The rectangle is in the LOCAL coordinates of the [CollisionObject2D]
-## Best suited for areas with a single [RectangleShape2D], in which case the [Shape2D]'s anchor/origin will be at the center of the returned rectangle.
-## Returns: A [Rect2] of the bounds. On failure: a [Rect2] with size -1 and invalid area.
-static func getShapeBounds(node: CollisionObject2D) -> Rect2:
-	# HACK: Sigh @ Godot for making this so hard...
-
-	# Find a CollisionShape2D child.
-	var shapeNode: CollisionShape2D = NodeTools.findFirstChildOfType(node, CollisionShape2D)
-
-	if not shapeNode:
-		Debug.printWarning("getShapeBounds(): Cannot find a CollisionShape2D child", node)
-		return Rect2(0, 0, -1, -1) # Return an invalid negative-sized rectangle matching the node's origin.
-
-	var shapeBounds: Rect2 = shapeNode.shape.get_rect()
-	shapeBounds.position  += shapeNode.position # Offset the rectangle to match the [Shape2D]'s position in the container
-	return shapeBounds
-
-
-## Returns a [Rect2] representing the combined rectangular boundaries/extents of ALL the [CollisionShape2D] children of an a [CollisionObject2D] (e.g. [Area2D] or [CharacterBody2D]).
-## To get the bounds of the first shape only, set [param maximumShapeCount] to 1.
-## NOTE: The rectangle is in the LOCAL coordinates of the [CollisionObject2D]. To convert to GLOBAL coordinates, add + the area's [member Node2D.global_position].
-## Works most accurately & reliably for areas/bodies with a single [RectangleShape2D].
-## Returns: A [Rect2] of all the merged bounds. On failure: a rectangle with size -1 and origin (0,0)
-static func getShapeBoundsInNode(node: CollisionObject2D, maximumShapeCount: int = 100) -> Rect2:
-	# TBD: PERFORMANCE: Option to cache results?
-	# HACK: Sigh @ Godot for making this so hard...
-
-	# INFO: PLAN: Overview: An [CollisionObject2D] has a [CollisionShape2D] child [Node], which in turn has a [Shape2D] [Resource].
-	# In the parent CollisionObject2D, the CollisionShape2D's "anchor point" is at the top-left corner, so its `position` may be 0,0.
-	# But inside the CollisionShape2D, the Shape2D's anchor point is at the CENTER of the shape, so its `position` would be for example 16,16 for a rectangle of 32x32.
-	# SO, we have to figure out the Shape2D's rectangle in the coordinate space of the CollisionObject2D.
-	# THEN convert it to global coordinates.
-
-	if node.get_child_count() < 1: return Rect2(0, 0, -1, -1) # On failure, return an invalid negative-sized rectangle
-
-	# Get all CollisionShape2D children
-
-	var combinedShapeBounds: Rect2
-	var shapesAdded: int = 0
-	var shapeSize:	 Vector2
-	var shapeBounds: Rect2
-
-	for shapeNode in node.get_children(): # TBD: PERFORMANCE: Use Node.find_children()?
-		if shapeNode is CollisionShape2D:
-			shapeSize = shapeNode.shape.get_rect().size # TBD: Should we use `extents`? It seems to be half of the size, but it seems to be a hidden property [as of 4.3 Dev 3].
-			# Because a [CollisionShape2D]'s anchor is at the center of, we have to get it's top-left corner, by subtracting HALF the size of the actual SHAPE:
-			shapeBounds = Rect2(shapeNode.position - shapeSize / 2, shapeSize) # TBD: PERFORMANCE: Use * 0.5?
-
-			if shapesAdded < 1: combinedShapeBounds = shapeBounds # Is it the first shape?
-			else: combinedShapeBounds = combinedShapeBounds.merge(shapeBounds)
-
-			# DEBUG: Debug.printDebug(str("shape: ", shapeNode.shape, ", rect: ", shapeNode.shape.get_rect(), ", bounds in node: ", shapeBounds, ", combinedShapeBounds: ", combinedShapeBounds), node)
-			shapesAdded += 1
-			if shapesAdded >= maximumShapeCount: break
-
-	if shapesAdded < 1:
-		Debug.printWarning("getShapeBoundsInNode(): Cannot find a CollisionShape2D child", node)
-		return Rect2(0, 0, -1, -1) # On failure, return an invalid negative-sized rectangle
-	else:
-		# DEBUG: Debug.printTrace([combinedShapeBounds, node.get_child_count(), shapesAdded], node)
-		return combinedShapeBounds
-
-
-## Calls [method Tools.getShapeBoundsInNode] and returns the [Rect2] representing the combined rectangular boundaries/extents of ALL the [CollisionShape2D] children of a [CollisionObject2D] (e.g. [Area2D] or [CharacterBody2D]), converted to GLOBAL coordinates.
-## Useful for comparing the [Area2D]s etc. of 2 separate nodes/entities.
-## WARNING: May not work correctly with rotation, scaling or negative dimensions.
-static func getShapeGlobalBounds(node: CollisionObject2D) -> Rect2:
-	# TBD: PERFORMANCE: Option to cache results?
-	var shapeGlobalBounds: Rect2 = getShapeBoundsInNode(node)
-	shapeGlobalBounds.position   = node.to_global(shapeGlobalBounds.position)
-	return shapeGlobalBounds
-
-
-## Returns a [Vector2] representing the distance by which an [intended] inner/"contained" [Rect2] is outside of an outer/"container" [Rect2], e.g. a player's [ClimbComponent] in relation to a Climbable [Area2D] "ladder" etc.
-## TIP: To put the inner rectangle back inside the container rectangle, SUBTRACT (or add the negative of) the returned offset from the [param containedRect]'s [member Rect2.position] (or from the position of the Entity it represents).
-## WARNING: Does NOT include rotation or scaling etc.
-## Returns: The offset/displacement by which the [param containedRect] is outside the bounds of the [param containerRect].
-## Negative -X values mean to the left, +X means to the right. -Y means jutting upwards, +Y means downwards.
-## (0,0) if the [param containedRect] is completely inside the [param containerRect].
-static func getRectOffsetOutsideContainer(containedRect: Rect2, containerRect: Rect2) -> Vector2:
-	# If the container completely encloses the containee, no need to do anything.
-	if containerRect.encloses(containedRect): return Vector2.ZERO
-
-	var displacement: Vector2
-
-	# Out to the left?
-	if containedRect.position.x < containerRect.position.x:
-		displacement.x = containedRect.position.x - containerRect.position.x # Negative if the containee's left edge is further left
-	# Out to the right?
-	elif containedRect.end.x > containerRect.end.x:
-		displacement.x = containedRect.end.x - containerRect.end.x # Positive if the containee's right edge is further right
-
-	# Out over the top?
-	if containedRect.position.y < containerRect.position.y:
-		displacement.y = containedRect.position.y - containerRect.position.y # Negative if the containee's top is higher
-	# Out under the bottom?
-	elif containedRect.end.y > containerRect.end.y:
-		displacement.y = containedRect.end.y - containerRect.end.y # Positive if the containee's bottom is lower
-
-	return displacement
-
-
-## Checks a list of [Rect2]s and returns the rectangle nearest to a specified reference rectangle.
-## The [param comparedRects] would usually represent static "zones" and the [param referenceRect] may be the bounds of a player Entity or another character etc.
-static func findNearestRect(referenceRect: Rect2, comparedRects: Array[Rect2]) -> Rect2:
-	# TBD: PERFORMANCE: Option to cache results?
-
-	var nearestRect:	 Rect2
-	var minimumDistance: float = INF # Start with infinity
-
-	# TBD: PERFORMANCE: All these variables could be replaced by directly accessing Rect2.position & Rect2.end etc. but these names may make the code easier to read and understand.
-
-	var referenceLeft:	float = referenceRect.position.x
-	var referenceRight:	float = referenceRect.end.x
-	var referenceTop:	float = referenceRect.position.y
-	var referenceBottom:float = referenceRect.end.y
-
-	var comparedLeft:	float
-	var comparedRight:	float
-	var comparedTop:	float
-	var comparedBottom:	float
-
-	var gap:			Vector2 # The pixels between the area edges
-	var distance:		float	# The Euclidean distance between edges
-
-	for comparedRect: Rect2 in comparedRects:
-		if not comparedRect.abs().has_area(): continue # Skip rect if it doesn't have an area
-
-		# If both regions are exactly the same position & size,
-		# or either of them completely contain the other, then you can't get any nearer than that!
-		if comparedRect.is_equal_approx(referenceRect) \
-		or comparedRect.encloses(referenceRect) or referenceRect.encloses(comparedRect):
-			minimumDistance = 0
-			nearestRect = comparedRect
-			break
-
-		# Simplify names
-		comparedLeft	= comparedRect.position.x
-		comparedRight	= comparedRect.end.x
-		comparedTop		= comparedRect.position.y
-		comparedBottom	= comparedRect.end.y
-		gap				= Vector2.ZERO # Gaps will default to 0 if the edges are touching
-
-		# Compute horizontal gap
-		if   referenceRight < comparedLeft:  gap.x = comparedLeft  - referenceRight	# Primary to the left of Compared?
-		elif comparedRight  < referenceLeft: gap.x = referenceLeft - comparedRight	# or to the right?
-
-		# Compute vertical gap
-		if   referenceBottom < comparedTop:	 gap.y = comparedTop  - referenceBottom	# Primary above Compared?
-		elif comparedBottom  < referenceTop: gap.y = referenceTop - comparedBottom	# or below?
-
-		# Get the Euclidean distance between edges
-		distance = sqrt(gap.x * gap.x + gap.y * gap.y)
-
-		# We have a nearer `nearestRect` if this is a new minimum
-		if  distance < minimumDistance:
-			minimumDistance = distance
-			nearestRect = comparedRect
-
-	return nearestRect
-
-
-## Checks a list of [Area2D]s and returns the area nearest to a specified reference area.
-## The [param comparedAreas] would usually be static "zones" and the [param referenceArea] may be the bounds of a player Entity or another character etc.
-## NOTE: If 2 different [Area2D]s are at the same distance from [param referenceArea] then the one on top i.e. with the higher [member CanvasItem.z_index] will be used.
-static func findNearestArea(referenceArea: Area2D, comparedAreas: Array[Area2D]) -> Area2D:
-	# TBD: PERFORMANCE: Option to cache results?
-
-	# DESIGN: PERFORMANCE: Cannot use findNearestRect() because that would require calling getShapeGlobalBounds() on all areas beforehand,
-	# and there is a separate tie-break based on the Z index, so there has to be some code dpulication :')
-
-	var nearestArea:	Area2D = null # Initialize with `null` to avoid the "used before assigning a value" warning
-	var minimumDistance: float = INF  # Start with infinity
-
-	var referenceAreaBounds: Rect2 = Tools.getShapeGlobalBounds(referenceArea)
-	var comparedAreaBounds:  Rect2
-
-	# TBD: PERFORMANCE: All these variables could be replaced by directly accessing Rect2.position & Rect2.end etc. but these names may make the code easier to read and understand.
-
-	var referenceLeft:	float = referenceAreaBounds.position.x
-	var referenceRight:	float = referenceAreaBounds.end.x
-	var referenceTop:	float = referenceAreaBounds.position.y
-	var referenceBottom:float = referenceAreaBounds.end.y
-
-	var comparedLeft:	float
-	var comparedRight:	float
-	var comparedTop:	float
-	var comparedBottom:	float
-
-	var gap:			Vector2 # The pixels between the area edges
-	var distance:		float	# The Euclidean distance between edges
-
-	for comparedArea: Area2D in comparedAreas:
-		if comparedArea == referenceArea: continue
-
-		comparedAreaBounds = Tools.getShapeGlobalBounds(comparedArea)
-		if not comparedAreaBounds.abs().has_area(): continue # Skip area if it doesn't have an area!
-
-		# If both regions are exactly the same position & size,
-		# or either of them completely contain the other, then you can't get any nearer than that!
-		if comparedAreaBounds.is_equal_approx(referenceAreaBounds) \
-		or comparedAreaBounds.encloses(referenceAreaBounds) or referenceAreaBounds.encloses(comparedAreaBounds):
-			# Is this the first overlapping area? (i.e. the minimum distance is not already 0)
-			# or is it another overlapping area visually on top (with a higher Z index) of a previous overlapping area?
-			if not is_zero_approx(minimumDistance) \
-			or (nearestArea and comparedArea.z_index > nearestArea.z_index):
-				minimumDistance = 0
-				nearestArea = comparedArea
-			continue # NOTE: Do NOT `break` the loop here! Keep checking for multiple overlapping areas to choose the one with the highest Z index.
-
-		# Simplify names
-		comparedLeft	= comparedAreaBounds.position.x
-		comparedRight	= comparedAreaBounds.end.x
-		comparedTop		= comparedAreaBounds.position.y
-		comparedBottom	= comparedAreaBounds.end.y
-		gap				= Vector2.ZERO # Gaps will default to 0 if the edges are touching
-
-		# Compute horizontal gap
-		if   referenceRight < comparedLeft:  gap.x = comparedLeft  - referenceRight	# Primary to the left of Compared?
-		elif comparedRight  < referenceLeft: gap.x = referenceLeft - comparedRight	# or to the right?
-
-		# Compute vertical gap
-		if   referenceBottom < comparedTop:	 gap.y = comparedTop  - referenceBottom	# Primary above Compared?
-		elif comparedBottom  < referenceTop: gap.y = referenceTop - comparedBottom	# or below?
-
-		# Get the Euclidean distance between edges
-		distance = sqrt(gap.x * gap.x + gap.y * gap.y)
-
-		# We have a nearer `nearestArea` if this is a new minimum
-		if  distance < minimumDistance:
-			minimumDistance = distance
-			nearestArea = comparedArea
-
-		# If 2 different [Area2D]s have the same distance,
-		# use the one that is visually on top of the other: with a higher Z index
-		elif is_equal_approx(distance, minimumDistance) \
-		and nearestArea and comparedArea.z_index > nearestArea.z_index:
-			nearestArea = comparedArea
-		# TBD: Otherwise, keep the first area.
-
-	return nearestArea
-
-
-## Returns a random point inside the combined rectangular boundary of ALL an [Area2D]'s [Shape2D]s.
-## NOTE: Does NOT verify whether a point is actually enclosed inside a [Shape2D].
-## Works most accurately & reliably for areas with a single [RectangleShape2D].
-static func getRandomPositionInArea(area: Area2D) -> Vector2:
-	var areaBounds: Rect2 = getShapeBoundsInNode(area)
-
-	# Generate a random position within the area.
-
-	#randomize() # TBD: Do we need this?
-
-	#var isWithinArea: bool = false
-	#while not isWithinArea:
-
-	var x: float = randf_range(areaBounds.position.x, areaBounds.end.x)
-	var y: float = randf_range(areaBounds.position.y, areaBounds.end.y)
-	var randomPosition: Vector2 = Vector2(x, y)
-
-	#if shouldVerifyWithinArea: isWithinArea = ... # TODO: Cannot check if a point is within an area :( [as of 4.3 Dev 3]
-	#else: isWithinArea = true
-
-	# DEBUG: Debug.printDebug(str("area: ", area, ", areaBounds: ", areaBounds, ", randomPosition: ", randomPosition))
-	return randomPosition
-
+#region Geometry Functions
+# For Area2D: See AreaTools.gd
+# For CollisionObject2D/CollisionShape2D: See CollisionTools.gd
+# For Rect2/Rect2i: See RectTools.gd
 
 ## Returns a COPY of a [Vector2i] moved in the specified [enum CompassDirection]
 static func offsetVectorByCompassDirection(vector: Vector2i, direction: CompassDirection) -> Vector2i:
@@ -504,15 +218,6 @@ static func resetBodyVelocityIfZeroMotion(body: CharacterBody2D) -> Vector2:
 	if is_zero_approx(lastMotion.y): body.velocity.y = 0
 	return lastMotion
 
-
-## Returns the [Shape2D] from a [CollisionObject2D]-based node (such as [Area2D] or [CharacterBody2D]) and a given "shape index"
-## @experimental
-static func getCollisionShape(node: CollisionObject2D, shapeIndex: int = 0) -> Shape2D:
-	# What is this hell...
-	var areaShapeOwnerID: int = node.shape_find_owner(shapeIndex)
-	# UNUSED: var areaShapeOwner: CollisionShape2D = node.shape_owner_get_owner(areaShapeOwnerID)
-	return node.shape_owner_get_shape(areaShapeOwnerID, shapeIndex) # CHECK: Should it be `shapeIndex` or 0?
-
 #endregion
 
 
@@ -528,10 +233,14 @@ xScale: float = 1.0, yScale: float = 1.0) -> Vector2:
 	return randomizedPosition
 
 
-## Returns a [Color] with R,G,B each set to a random value "quantized" to steps of 0.25
-static func getRandomQuantizedColor() -> Color:
-	const steps: Array[float] = [0.25, 0.5, 0.75, 1.0]
-	return Color(steps.pick_random(), steps.pick_random(), steps.pick_random())
+## Returns a [Color] with R,G,B each set to a random value "quantized" to discrete steps (in increments of 0.25 by default)
+static func getRandomQuantizedColor(steps: Array[float] = Tools.sequenceQuarters, alpha: float = 1.0) -> Color:
+	return Color(steps.pick_random(), steps.pick_random(), steps.pick_random(), alpha)
+
+
+## Returns an "HSV" [Color] with the Hue part set to a random value "quantized" to discrete steps (in increments of 0.2 by default)
+static func getRandomQuantizedColorHue(steps: Array[float] = Tools.sequenceTenths, saturation: float = 0.75, value: float = 1.0, alpha: float = 1.0) -> Color:
+	return Color.from_hsv(steps.pick_random(), saturation, value, alpha)
 
 
 ## Returns the global position of the top-left corner of the screen in the camera's view.
@@ -644,16 +353,13 @@ static func printPropertiesToLabels(object: Object, labels: Array[Label], should
 
 #region Text Functions
 
-## Returns an Enum's value along with its key as a text string.
-## TIP: To just get the Enum key corresponding to the specified value, use [method Dictionary.find_key].
+## Returns an [Enum]'s value along with its key as a text string, e.g. "0 (default)" or "270 (north)"
+## TIP: To just get the [Enum] key corresponding to the specified value, use [method Dictionary.find_key]
 ## WARNING: May NOT work as expected for enums with non-sequential values or starting below 0, or if there are multiple identical values, or if there is a 'null' key.
-static func getEnumText(enumType: Dictionary, value: int) -> String:
+static func getEnumKey(enumType: Dictionary, value: int) -> String:
 	# TBD: Less ambiguous name?
-	var key: String
-
-	key = str(enumType.find_key(value)) # TBD: Check for `null`?
-	if key.is_empty(): key = "[invalid key/value]"
-
+	var key: Variant = enumType.find_key(value) # Variant to allow for `null` because str(Dictionary.find_key()) returns "null" (as text) which doesn't work for checking with String.is_empty()
+	if  key == null: key = "[invalid key/value]"
 	return str(value, " (", key, ")")
 
 
@@ -669,7 +375,7 @@ static func replaceStrings(sourceString: String, substitutions: Dictionary[Strin
 #endregion
 
 
-#region Maths Functions
+#region Math Functions
 
 ## TIP: To "truncate" the number of decimal points, use Godot's [method @GlobalScope.snappedf] function.
 
@@ -679,42 +385,76 @@ static func rollChance(chancePercent: int) -> bool:
 	return randi_range(1, 100) <= chancePercent
 
 
-## Returns a copy of a number wrapped around to the [param minimum] or [param maximum] value if it exceeds or goes below either limit (inclusive).
-## May be used to cycle through a range by adding/subtracting an offset to [param current] such as +1 or -1. The number may be an array index or `enum` state, or a sprite position to wrap it around the screen Pac-Man-style.
-## If [param minimum] > [param maximum] then [param current] is returned unmodified.
-static func wrapInteger(minimum: int, current: int, maximum: int) -> int:
-	# NOTE: Cannot use Godot's pingpong() because it "bounces" not "wraps"
-	if minimum > maximum:
-		Debug.printWarning(str("wrapInteger(): minimum ", minimum, " > maximum ", maximum, ", returning current: ", current))
-		return current # TBD: Return `current` or `minimum` or `maximum` in case of invalid arguments??
-	elif minimum == maximum: # If there is no difference between the range, just return either.
-		return minimum
-
-	# NOTE: Do NOT clamp first! So that an already-offset value may be provided for `current`
-
-	# THANKS: rubenverg@Discord, lololol__@Discord
-	return posmod(current - minimum, maximum - minimum + 1) + minimum # +1 to make limits inclusive
-
-
 ## Wraps a [float] value around if it is below 0.0 or higher than 1.0
+## NOTE: This is different from Godot's builtin [method @GlobalScope.wrapf] because in this method 1.0 is INCLUSIVE.
 static func wrapUnitFloat(value: float) -> float:
-	if value < 0.0 or value > 1.0: return fposmod(value, 1.0)
-	else: return value
+	return fposmod(value, 1.0) if (value < 0.0 or value > 1.0) else value
 
 #endregion
 
 
 #region Array Functions
 
+## NOTE: Packed arrays such as [PackedStringArray] etc. are accepted even though [param array] is typed as [Array]
 static func validateArrayIndex(array: Array, index: int) -> bool:
 	return index >= 0 and index < array.size()
 
 
 ## Takes a [param index] and increments it by the specified amount, wrapping it around to 0 + remainder if it exceeds an [param array]'s size.
 ## Returns 0 if the array is empty, which will be an invalid index.
-static func wrapArrayIndex(array: Variant, index: int, increment: int) -> int: # NOTE: Typed as [Variant] instead of [Array] in order to also accept [PackedStringArray] etc.
-	if not array.is_empty(): return Tools.wrapInteger(0, index + increment, array.size() - 1)
+## NOTE: Packed arrays such as [PackedStringArray] etc. are accepted even though [param array] is typed as [Array]
+static func wrapArrayIndex(array: Array, index: int, increment: int) -> int:
+	if not array.is_empty(): return wrapi(0, index + increment, array.size()) # max is exclusive
 	else: return 0
+
+
+## Returns a specific number of random unique array indices.
+## If [param numberOfIndices] is greater than [param arraySize], the returned count is clamped to [param arraySize]
+## PERFORMANCE: Uses a "sparse partial Fisher-Yates shuffle" to only track selected/swapped slots instead of allocating an Array for every possible index.
+## TIP: To shuffle an entire Array, use Godot's builtin [method Array.shuffle]
+static func pickRandomArrayIndices(arraySize: int, numberOfIndices: int) -> Array[int]:
+	# TBD: Add parameter for a custom RandomNumberGenerator?
+	if arraySize <= 0 or numberOfIndices <= 0: return []
+
+	var selectedIndexCount:	int = mini(numberOfIndices, arraySize)
+	var shuffledIndices:	 Array[int] = []
+	shuffledIndices.resize(selectedIndexCount)
+
+	# Store indexes or "slots" for the Fisher-Yates algorithm (each step explained in the loop below)
+	# Key:   Logical slot still available to roll
+	# Value: Actual index represented by that slot
+	var swappedIndices:		 Dictionary[int, int]
+	var remainingIndexCount: int = arraySize
+	var selectedSlot:		 int
+	var selectedIndex:		 int
+
+	for count in selectedIndexCount:
+		# 1: Roll one slot from the still available range.
+		# Example: [A,B,C,D]: select B
+		selectedSlot  = randi_range(0, remainingIndexCount - 1)
+
+		# 2: Resolve that slot to the actual index.
+		# Instead of using a list of every possible index, assume that every slot points to itself unless `swappedIndices` says otherwise:
+		# If the slot was never swapped (i.e. the key doesn't exist) then it represents itself.
+		selectedIndex = swappedIndices.get(selectedSlot, selectedSlot)
+
+		# 3: Remove the selected slot by replacing it with the last available slot.
+		# This is the same idea as swapping `selectedSlot` with the end of an array, then shrinking the array by 1.
+		# Example: [A,D,C | B]: B selected & "removed" from the "pool" because the `remainingIndexCount` is decreased
+		# The Dictionary becomes: swappedIndices[1] = D
+		remainingIndexCount -= 1
+		swappedIndices[selectedSlot] = swappedIndices.get(remainingIndexCount, remainingIndexCount)
+
+		# 4: The old last slot is now outside the available range, so it can be forgotten.
+		# Example: [A,D,C]
+		swappedIndices.erase(remainingIndexCount)
+
+		# 5: Build the list of random indices.
+		shuffledIndices[count] = selectedIndex
+
+		# 6: On the next pass, [A,D,C] → Select A, swap with C → [C,D | A,B] and so on...
+
+	return shuffledIndices
 
 #endregion
 
@@ -728,15 +468,23 @@ static func wrapArrayIndex(array: Variant, index: int, increment: int) -> int: #
 
 ## Checks whether a [Variant] value may be considered a "success", for example the return of a function.
 ## If [param value] is a [bool], then it is returned as is.
-## If the value is an [Array] or [DIctionary], `true` is returned if it's not empty.
-## For all other types, `true` is returned if the value is not `null`.
+## If the value is a number, `true` is returned even if it's 0, unless it's a `float` NAN (Not A Number).
+## If the value is an [Array] or [Dictionary] or a "packed array" type, `true` is returned if it's not empty.
+## For all other types, `true` is returned if the value is not `null`
 ## TIP: Use for verifying whether a [Payload]'s [method executeImplementation] executed successfully.
 static func checkResult(value: Variant) -> bool:
 	# Because GDScript doesn't have Tuples :')
-	if    value is bool: return value
+	if    value is bool:	return value
+	elif  value == null:	return false # Check a common case first, even though we fall through to accepting all non-null values in the end
+	elif  value is int:		return true  # TBD: Return `true` even if a number is 0?
+	elif  value is float:	return not is_nan(value)
 	elif  value is Array or value is Dictionary: return not value.is_empty()
-	elif  value != null: return true
-	else: return false
+	else:
+		# Check for Packed Arrays
+		var valueTypeName: String = type_string(typeof(value))
+		if    valueTypeName.begins_with("Packed") and valueTypeName.ends_with("Array"): return not value.is_empty()
+		elif  value != null: return true # Just in case, even though `null` was checked above
+		else: return false
 
 
 ## Stops a [Timer] and emits its [signal Timer.timeout] signal.
@@ -769,7 +517,9 @@ static func cycleThroughList(value: Variant, list: Array[Variant]) -> Variant:
 ## Copies all serialized properties back onto the live instance IN-PLACE,
 ## preserving all signal connections, [Dictionary] caches, and external references.
 ## Returns `true` if successful. Returns `false` if the [param resource] has no [member Resource.resource_path] (e.g. if it's an inline Resource inside a `.tscn` scene)
+## EXAMPLE: Resetting stats like health, ammo, etc. and other flags etc. when resetting a level after death etc.
 ## TIP: For a [Stat], this restores the [member Stat.value] to the designer's saved default, which may differ from [member Stat.min] and [member Stat.max]
+## ALERT: This is a "shallow" reset that does NOT preserve stored Array, Dictionary, and nested Resource/Object properties within the [param resource]
 ## ALERT: Property setters WILL fire during the reset, which may emit signals such as [signal Resource.changed]/[signal Stat.didMin]/[signal Stat.didMax]
 ## @experimental
 static func resetResource(resource: Resource) -> bool:

@@ -18,9 +18,9 @@
 - `Templates/`: Prebuilt entity+component sets and scenes for quick gameplay prototyping.
 - `Assets/`: Art/sound/music and other media, including third-party packs for placeholders and prototyping.
 - `Tests/`: Playable scenes and supporting scripts for manually testing subsystems and mechanics such as combat or tile-based/turn-based components. Name format: `*Test.tscn` + `*Test.gd`
-- `addons/`: Godot Editor plugins. The Comedot plugin at `addons/Comedot/plugin.cfg` is enabled by default in `project.godot`.
+- `addons/`: Godot Editor plugins.
 - `Temporary/`, `Lab/`: Transient experiments. All files in these folders should always be ignored. Disregard any errors or warnings in files in those folders. If a file in these folders prevents compilation/parsing/export, consider removing that file.
-- `Scripts/Tools.gd`, `*Tools.gd`: Files containing global static standalone helper functions for builtin Godot nodes & types. This is a workaround for the inability to extend builtin Godot types with custom methods without using subclasses.
+- `Scripts/Tools/Tools.gd`, `*Tools.gd`: Files containing global static standalone helper functions for builtin Godot nodes & types. This is a workaround for the inability to extend builtin Godot types with custom methods without using subclasses.
 - `Game/`: Game-specific files that are NOT part of the Comedot framework itself. These files should be ignored when referring to the framework, and only accessed when considering an actual game being made with Comedot. Everything outside the `Game/` subtree is part of the framework that is shared between multiple games. When generating code for a game, only the files in the `Game/` subtree should be modified. `Game/AGENTS.override.md` takes precedence for any activity inside the `Game/` subtree.
 
 
@@ -38,7 +38,7 @@
 
 ## Build, Run, Test & Export
 - Open the Comedot template in Godot by selecting `project.godot` 
-- `project.godot` contains the required Godot version under `config/features` and other metadata. Treat that field as the source of truth (currently `4.7`).
+- `project.godot` contains the required Godot version under `config/features` and other metadata. Comedot always targets the latest version (release or beta).
 - Refer to the official documentation when needed, at `https://docs.godotengine.org/en/latest/`
 - Run locally from the editor (F5) or run individual scenes (F6) for focused testing.
 - To verify scripts and check parser errors etc. run Godot in "headless" mode by passing the following flags to the Godot executable: `--headless --check-only --path [path] --script [filename]`
@@ -46,19 +46,19 @@
 	- Godot may crash at startup in headless mode if it cannot write the default `user://logs` file: Pass an explicit writable `--log-file` argument in `/tmp` or another suitable folder.
 	- If the Godot executable is unavailable or live execution is not necessary, just read/lint GDScript manually for static analysis. 
 	- For other commands and flags, see `https://docs.godotengine.org/en/latest/tutorials/editor/command_line_tutorial.html`
-- Exports are driven by Godot’s export presets (`export_presets.cfg`) when present; use the editor’s Export dialog to create/update presets and build exports.
+- Exports are driven by Godot’s export presets (`export_presets.cfg`); use the editor’s Export dialog for builds.
 - Tests are represented as Godot scenes/scripts under `Tests/` to be played manually. `*Test.tscn` with companion `.gd` where needed.
 - Run tests by opening a test scene and manually running it in the editor.
 - No formal coverage targets are defined; keep regression tests near the relevant feature.
 
 
-## Review Guidelines
+## Code Review
 - Ignore the contents of `Temporary/` and `Lab/`
 - Functions and types marked with an `@experimental` comment are expected to have bugs and incomplete implementations. Findings involving experimental code should be a lower priority and not expected to be fixed, unless important non-experimental code depends on that experimental code.
-- Not all `null` references need to be guarded: In some cases, a crash may be better than a warning or a silent failure/skip, specially if it's a core object which should never be missing at runtime under normal circumstances.
+- Not all `null`-able references need to be guarded: In some cases, a crash is better than a warning or a silent failure/skip, specially if it's a core object which should never be missing at runtime under normal circumstances.
 - Ignore the contents of `Game/` unless the prompt and context involves a specific game being made with the main framework project.
-- The contents of `Game/` are subject to the instructions in `Game/AGENTS.override.md` when that file exists.
-
+- The contents of `Game/` are subject to the instructions in `Game/AGENTS.override.md`
+- If an inline source code renderer does not support syntax highlighting for GDScript, use Swift syntax highlighting for fenced GDScript code blocks, as it closely resembles GDScript highlighting.
 
 ## Coding Style & Naming Conventions
 Follow the guidelines in `Conventions.md`, which includes these key rules:
@@ -77,10 +77,10 @@ Follow the guidelines in `Conventions.md`, which includes these key rules:
 ## Generating New Code & Scenes
 - DO NOT EDIT ANY FILES UNLESS EXPLICITLY TOLD TO.
 - See `HowTo.md` and `Conventions.md` (specially the "Avoid" section)
+- This framework is primarily for 2D games; Godot's 3D features & APIs such as `Node3D` are almost never used or needed.
 - New gameplay behaviors should generally be implemented as components that can be reused in multiple games. 
 - "Components" are any node with a script that is a subclass of `Components/Component.gd`, and "entities" are any node with the `Entities/Entity.gd` script or its subclasses. Entities are just a container for components and multiple components can be added to an entity. Components are generally standalone and provide a single specific behavior or set of closely-related behaviors, but components may depend on each other and modify each other at runtime, such as `DamageComponent` + `DamageReceivingComponent` + `KnockbackOnHitComponent`
 - Components are always a pair of a `.tscn` Godot scene file + a `.gd` GDScript file, even if the scene is empty, so they can be easily added to entity nodes. Component scripts must ultimately inherit from `Component.gd` or a subclass. Component root nodes must be added to the `components` node group.
-- Main game scenes should run `Scripts/Start.gd` early (typically on the root node) so Comedot startup initialization runs before gameplay scripts.
 - A `class_name` must be used for all components and entities, and also for other types that are expected to be referenced from code or instantiated at runtime. Exceptions are short specific scripts such as `Spin.gd`
 - The root node of component scenes must be the closest relevant Godot builtin node type that matches the component's core purpose: For example, if the component uses a `Timer` and no other nodes, then the root node must be a `Timer` instead of `Node` with a `Timer` child.
 	- Simple components that don't need a specialized node and don't have any visual features should use `Node` as the root node instead of `Node2D`
@@ -96,9 +96,7 @@ Follow the guidelines in `Conventions.md`, which includes these key rules:
 ## Common Godot Errors & Gotchas to Avoid
 - Avoid "shadowing" properties; do not give a function or loop/block variable the same name as property of the class or inherited from the superclass, e.g. `body` in `PlatformerPhysicsComponent.gd`
 - When comparing `float` use `is_equal_approx()` and `is_zero_approx()` instead of a direct `==` or `!=` or `>=` or `<=` but `>` and `<` are OK.
-- Do not cast types using a direct `as` or `is`: Avoid `var otherNodeAsCastedType: CastedType = otherNode as CastedType` or `if otherNode is CastedType:` because the Godot parser considers it as an error; instead use this workaround: `var otherNodeAsCastedType: CastedType = nodeToCast.get_node(^".") as CastedType` (the `as` in this case is superfluous and may be omitted) or `if is_instance_of(someNode, CastedType)`
-- `is` checks and `as` casts are used in this codebase. Follow existing patterns from `Entities/Entity.gd`: use `is`/`is_instance_of` for type checks, and for self-casts prefer `get_node(".") as SomeType` when assigning to a strongly-typed variable.
-
+- Do not cast types using a direct `as` or `is` if it causes a parse error: Avoid `var otherNodeAsCastedType: CastedType = otherNode as CastedType` or `if otherNode is CastedType:` because the Godot parser considers it as an error if the static types mismatch; instead use this workaround: `var otherNodeAsCastedType: CastedType = nodeToCast.get_node(^".") as CastedType` (the `as` in this case is superfluous and may be omitted) or `if is_instance_of(someNode, CastedType)`
 
 
 ## Commit & Pull Request Guidelines

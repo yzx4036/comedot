@@ -1,4 +1,5 @@
 ## Helper functions to assist with common tasks involving [Node] or [Node2D]
+## In the future, these functions & types may be incorporated into the builtin Godot API as native code or via custom extensions.
 
 class_name NodeTools
 extends GDScript # NOTE: DESIGN: We cannot `extends Node` because we want these functions to be globally available, not just for instances of a special subclass.
@@ -14,16 +15,27 @@ static func addChildAndSetOwner(child: Node, parent: Node) -> void: # DESIGN: TB
 	child.owner = parent
 
 
-## Adds & returns a child node at the position of another node, and optionally copies the rotation and scale of the [member placementNode].
-## Also sets the child's owner to the new parent.
+## Adds & returns a child node at the position of another node, and optionally copies the rotation and scale of the [param placementNode]
+## Also sets the child's owner to the new parent for persistence.
+## [param copyTransform] overrides [param copyRotation] & [param copyScale] and copies the full global transform, including skew etc.
 ## Example: Using [Marker2D]s as placeholders for objects like doors etc. during procedural map generation from a template.
-## NOTE: Also sets the `force_readable_name` parameter, which may slow performance if used frequently.
-static func addChildAtNode(child: Node2D, placementNode: Node2D, parent: Node, copyRotation: bool = true, copyScale: bool = true) -> Node2D:
-	child.position = placementNode.position
-	if copyRotation: child.rotation	= placementNode.rotation
-	if copyScale:	 child.scale	= placementNode.scale
+## ALERT: [param child]'s [method Node._enter_tree] & [method Node._ready] may run BEFORE the new transform is applied.
+## NOTE: Also sets the `force_readable_name` parameter if [member Debug.shouldForceReadableName], which may slow performance if used frequently.
+static func addChildAtNode(
+	child:			Node2D,
+	placementNode:	Node2D,
+	parent:			Node,
+	copyRotation:	bool = true,
+	copyScale:		bool = true,
+	copyTransform:	bool = false) -> Node2D:
+	# Add first, then translate transforms across the coordinate space of the different parents
 	parent.add_child(child, Debug.shouldForceReadableName) # PERFORMANCE: force_readable_name only if debugging
-	child.owner = parent
+	child.owner = parent # For persistence
+	if copyTransform: child.global_transform = placementNode.global_transform
+	else:
+		child.global_position = placementNode.global_position
+		if copyRotation: child.global_rotation = placementNode.global_rotation
+		if copyScale:	 child.global_scale = placementNode.global_scale
 	return child
 
 
@@ -40,18 +52,21 @@ static func findFirstChildOfType(parentNode: Node, childType: Variant, includePa
 	return null
 
 
-## Calls [method NodeTools.findFirstChildOfType] to return the first child of [param parentNode] which matches ANY of the specified [param types]  (searched in the array order).
-## If [param includeParent] is `true` (default) then the [param parentNode] ITSELF is returned AFTER none of the requested types are found.
+## Returns the first direct child of [param parentNode] which matches ANY of the specified [param types]
+## NOTE: Types are searched in array order, so preferred types should be listed first.
+## NOTE: Does NOT recursively search subchildren.
+## If [param returnParentIfNoMatches] is `true` then the [param parentNode] ITSELF is returned AFTER none of the requested types are found.
 ## This may be useful for choosing certain child nodes of an entity to operate on, like an [AnimatedSprite2D] or [Sprite2D] to animate, otherwise operate on the entity itself.
 ## WARNING: [param returnParentIfNoMatches] returns the [param parentNode] even if it is NOT one of the [param childTypes]!
-## PERFORMANCE: Should be the same as multiple calls to [method NodeTools.findFirstChildOfType] in order of the desired types.
+## PERFORMANCE: Should be the same as multiple calls to [method NodeTools.findFirstChildOfType] without `includeParent`, in order of the desired types.
 static func findFirstChildOfAnyTypes(parentNode: Node, childTypes: Array[Variant], returnParentIfNoMatches: bool = true) -> Node:
 	# TBD: Better name
 	# Nodes may be an instance of multiple inherited types, so check each of the requested types.
 	# NOTE: Types must be the outer loop, so that when searching for [AnimatedSprite2D, Sprite2D], the first [AnimatedSprite2D] is returned.
 	# If child nodes are the outer loop, then a [Sprite2D] might be returned if it is higher in the child tree than the [AnimatedSprite2D].
+	var children: Array[Node] = parentNode.get_children() # PERFORMANCE: Cache outside the loop
 	for type: Variant in childTypes:
-		for child in parentNode.get_children():
+		for child in children:
 			if is_instance_of(child, type): return child # break
 
 	# Return the parent itself AFTER none of the requested types are found.
@@ -70,33 +85,24 @@ static func findFirstParentOfType(childNode: Node, parentType: Variant) -> Node:
 	return parent
 
 
-## Appends a linear/"flattened" list of ALL the child nodes AND their subchildren and so on, recursively, from the specified [param firstNode].
-## e.g. `[FirstNode, Child1ofFirstNode, Child1ofChild1ofFirstNode, Child2ofChild1ofFirstNode, Child2ofFirstNode, …]`
-## TIP: EXAMPLE USAGE: This may be useful for setting UI focus chains in trees/lists etc.
-## WARNING: May cause stack overflow if [param nodeToIterate] has a deeply-nested node trees.
-## @experimental
-static func flatMapNodeTree(nodeToIterate: Node, existingList: Array[Node]) -> void:
-	# TODO: Better name?
-	# TODO: Filtering
-	# TODO: This should be a generic function for flattening trees of any type :')
-	existingList.append(nodeToIterate)
-	for index in nodeToIterate.get_child_count(): # No need to -1 because the end of a range is EXCLUSIVE
-		flatMapNodeTree(nodeToIterate.get_child(index), existingList)
+## Returns a linear/"flattened" list of [param nodeToIterate] AND all its children and subchildren, recursively.
+## NOTE: INCLUDES [param rootNode] (the parent)
+## e.g. `[RootNode, Child1ofFirstNode, Child1ofChild1ofFirstNode, Child2ofChild1ofFirstNode, Child2ofFirstNode, …]`
+## NOTE: This includes internal children, matching [method Node.find_children]
+## TIP: EXAMPLE USAGE: Setting UI focus chains in trees/lists etc.
+## WARNING: PERFORMANCE: May be slow on deeply-nested node trees.
+static func flatMapNodeTree(rootNode: Node, type: String = "") -> Array[Node]:
+	# TBD: Better name?
+	# TBD: PERFORMANCE: Cache?
+	var nodes: Array[Node] = [rootNode]
+	nodes.append_array(rootNode.find_children("*", type, true, false)) # recursive, not owned (include unowned)
+	return nodes
 
 
-## Calls [method NodeTools.flatMapNodeTree] to return a linear/"flattened" list of ALL the child nodes AND their subchildren, recursively, from the specified [param firstNode].
-## NOTE: INCLUDES [param firstNode] (the parent)
-## @experimental
-static func getAllChildrenRecursively(firstNode: Node) -> Array[Node]:
-	# TBD: Merge with flatMapNodeTree()?
-	var flatList: Array[Node]
-	NodeTools.flatMapNodeTree(firstNode, flatList)
-	return flatList
-
-
-## Replaces a child node with another node at the same index (order), optionally copying the position, rotation and/or scale.
+## Replaces a child node with another node at the same index (order), optionally copying position, rotation etc.
+## [param copyTransform] overrides [param copyPosition] & [param copyRotation] & [param copyScale] and copies the full transform including skew etc.
 ## NOTE: The previous child and its sub-children are NOT deleted by default. To delete a child, set [param freeReplacedChild] or use [method Node.queue_free]
-## Returns: `true` if [param childToReplace] was found and replaced.
+## Returns: `true` if [param childToReplace] was found and replaced, or if both nodes are the same.
 static func replaceChild(
 	parentNode:		Node,
 	childToReplace:	Node,
@@ -104,13 +110,15 @@ static func replaceChild(
 	copyPosition:	bool = false,
 	copyRotation:	bool = false,
 	copyScale:		bool = false,
+	copyTransform:	bool = false,
 	freeReplacedChild: bool = false) -> bool:
 	
-	if  childToReplace == newChild: return true # Are we trying to make the same node replace itself lol
-
 	if  childToReplace.get_parent() != parentNode:
 		Debug.printWarning(str("replaceChild() childToReplace.get_parent(): ", childToReplace.get_parent(), " != parentNode: ", parentNode))
 		return false
+
+	if  childToReplace == newChild: # Are we trying to make the same node replace itself lol
+		return true
 
 	# Is the new child already in another parent?
 	# TODO: Option to remove new child from existing parent
@@ -120,14 +128,17 @@ static func replaceChild(
 		return false
 	
 	# Copy properties
-	if  newChild is Node2D and childToReplace is Node2D:
-		if copyPosition: newChild.position	= childToReplace.position
-		if copyRotation: newChild.rotation	= childToReplace.rotation
-		if copyScale:	 newChild.scale		= childToReplace.scale
+	if  (newChild		is Node2D or newChild		is Control) \
+	and (childToReplace is Node2D or childToReplace is Control):
+		if copyTransform:
+			newChild.transform = childToReplace.transform
+		else:
+			if copyPosition: newChild.position	= childToReplace.position
+			if copyRotation: newChild.rotation	= childToReplace.rotation
+			if copyScale:	 newChild.scale		= childToReplace.scale
 
 	# Swap the kids
 	var previousChildIndex: int = childToReplace.get_index() # The original index
-	parentNode.remove_child(childToReplace) # NOTE: Do not use `replace_by()` which transfers all sub-children as well.
 
 	# If `newChild` is already in the target `parentNode`, just move it to the `childToReplace`'s place in the order and position etc.
 	if newChild.get_parent() != parentNode:
@@ -135,23 +146,37 @@ static func replaceChild(
 
 	parentNode.move_child(newChild, previousChildIndex)
 
+	# NOTE: Remove AFTER swapping, because removal will shift all nodes and may make `previousChildIndex` incorrect
+	parentNode.remove_child(childToReplace) # NOTE: Do not use `replace_by()` which transfers all sub-children as well.
+
 	# Yeet the disowned child?
 	if freeReplacedChild: childToReplace.queue_free()
 
 	return true
 
 
-## Removes the first child of the [param parentNode], if any, and adds the specified [param newChild]. Optionally copies the position, rotation and/or scale.
-## NOTE: The new child is added regardless of whether the parent already had a child or not.
-## NOTE: The previous child and its sub-children are NOT deleted by default. To delete a child, set [param freeReplacedChild] or use [method Node.queue_free].
-static func replaceFirstChild(parentNode: Node, newChild: Node, copyPosition: bool = false, copyRotation: bool = false, copyScale: bool = false, freeReplacedChild: bool = false) -> void:
+## Calls [method replaceChild] to remove the first child of the [param parentNode], if any, and adds the specified [param newChild]. Optionally copies position, rotation etc.
+## [param copyTransform] overrides [param copyPosition] & [param copyRotation] & [param copyScale] and copies the full transform including skew etc.
+## NOTE: If the parent does not already have a child, the new child is added.
+## Returns `true` if [param newChild] was added/replaced successfully.
+## NOTE: The previous child and its sub-children are NOT deleted by default. To delete a child, set [param freeReplacedChild] or use [method Node.queue_free]
+static func replaceFirstChild(
+	parentNode:		Node,
+	newChild:		Node,
+	copyPosition:	bool = false,
+	copyRotation:	bool = false,
+	copyScale:		bool = false,
+	copyTransform:	bool = false,
+	freeReplacedChild: bool = false) -> bool:
+
 	var childToReplace: Node = parentNode.get_child(0) if parentNode.get_child_count() > 0 else null
 	# Debug.printDebug(str("replaceFirstChildControl(): ", childToReplace, " → ", newChild), parentNode)
 
 	if childToReplace:
-		NodeTools.replaceChild(parentNode, childToReplace, newChild, copyPosition, copyRotation, copyScale, freeReplacedChild)
+		return NodeTools.replaceChild(parentNode, childToReplace, newChild, copyPosition, copyRotation, copyScale, copyTransform, freeReplacedChild)
 	else: # If there are no children, just add the new one.
 		NodeTools.addChildAndSetOwner(newChild, parentNode) # Ensure persistence
+		return true
 
 
 ## Removes each child from the [parameter parent] then calls [method Node.queue_free] on the child.
@@ -226,14 +251,6 @@ static func reparentNodes(currentParent: Node, nodesToTransfer: Array[Node], new
 
 #region Position
 
-## Returns a copy of a [Rect2] transformed from a node's local coordinates to the global position.
-## TIP: PERFORMANCE: This function may be replaced with `Rect2(rect.position + node.global_position, rect.size)` to avoid an extra call.
-## TIP: Combine with the output from [member getShapeBoundsInNode] to get an [Area2D]'s global region.
-## WARNING: May not work correctly with rotation, scaling or negative dimensions.
-static func convertNodeRectToGlobalCoordinates(node: Node2D, rect: Rect2) -> Rect2:
-	# TODO: Account for rotation
-	return Rect2(node.to_global(rect.position), rect.size * node.global_scale)
-
 
 ## Returns the specified "design size" centered on a Node's Viewport.
 ## NOTE: The viewport size may different from the scaled screen/window size.
@@ -274,14 +291,15 @@ static func findNearestNodeInGroup(referencePosition: Vector2, targetGroup: Stri
 
 
 ## Returns an offset by which to modify the GLOBAL position of a node to keep it clamped within a maximum distance/radius (in any direction) from another node.
-## If the [param nodeToClamp] is within the [param maxDistance] of the [param anchor] then (0,0) is returned i.e. no movement required.
+## If the [param nodeToClamp] is within the absolute [param maxDistance] of the [param anchor] then (0,0) is returned i.e. no movement required.
 ## May be used to tether a visual effect (such as a targeting cursor) to an anchor such as a character sprite, as in [AimingCursorComponent] & [TetherComponent].
 ## NOTE: Does NOT return a direct position, so the [param nodeToClamp]'s `global_position` must be updated via `+=` NOT `=`!
+## NOTE: A negative [param maxDistance] will clamp to the opposite side of the [param anchor]
 static func clampPositionToAnchor(nodeToClamp: Node2D, anchor: Node2D, maxDistance: float) -> Vector2:
 	var difference:	Vector2 = nodeToClamp.global_position - anchor.global_position # Use global position in case it's a parent/child relationship e.g. a visual component staying near its entity.
 	var distance:	float   = difference.length()
 
-	if distance > maxDistance:
+	if distance > abs(maxDistance):
 		var offset: Vector2 = difference.normalized() * maxDistance
 		return (anchor.global_position + offset) - nodeToClamp.global_position
 	else:

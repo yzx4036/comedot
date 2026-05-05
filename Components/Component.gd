@@ -31,7 +31,7 @@ extends Node
 #region Core Properties
 # TBD: @export_storage?
 
-var parentEntity: Entity:
+var parentEntity: Entity: # TBD: @export_storage?
 	set(newValue):
 		if newValue != parentEntity:
 			if debugMode: printChange("parentEntity", parentEntity, newValue)
@@ -42,9 +42,9 @@ var parentEntity: Entity:
 			# to be in proper order with other operations such as signals etc.
 
 ## A [Dictionary] of other [Component]s in the [member parentEntity]'s [member Entity.components], including this component itself.
-## TIP: Access via the shortcut of `coComponents.ComponentClassName` or,
-## use `coComponents.get(&"ComponentClassName")` to avoid a crash if an optional component is missing and just return `null`.
-## NOTE: Does NOT find subclasses which inherit the specified type; use [method Entity.findFirstComponentSubclass] instead.
+## TIP: Access via the shortcut of `coComponents.ComponentClassName`
+## or use [method getCoComponent] or `coComponents.get(&"ComponentClassName")` to avoid a crash if an optional component is missing and just return `null`.
+## NOTE: Does NOT find subclasses which inherit the specified type; use [method Entity.getCoComponent] with `findSubclasses` or [method Entity.findFirstComponentSubclass] instead.
 var coComponents: Dictionary[StringName, Component]
 
 #endregion
@@ -106,9 +106,14 @@ func checkRequiredComponents() -> bool:
 #region Life Cycle
 # NOTIFICATION_PARENTED → _enter_tree() → _ready()
 
+## ALERT: Unlike other virtual methods, Godot calls inherited [method Object._notification] automatically, usually the base class first. Subclasses should NOT call `super._notification()`
+## Events such as [method Component.unregisterEntity] run BEFORE a subclass's [constant Node.NOTIFICATION_UNPARENTED]:
+## TIP: Cleanup that needs the [member parentEntity] should connect to [signal willRemoveFromEntity] or override [method unregisterEntity] before calling `super()`
 func _notification(what: int) -> void:
 	match what:
-		NOTIFICATION_PARENTED:   validateParent()	# Received when a node is set as the child of another node,  not necessarily when the node enters the SceneTree.
+		NOTIFICATION_PARENTED: # Received when a node is set as the child of another node, not necessarily when the node enters the SceneTree.
+			initializeLog()
+			validateParent()
 		NOTIFICATION_UNPARENTED: unregisterEntity() # Received when a parent calls remove_child() on a child node, not necessarily when the node exit the SceneTree.
 		NOTIFICATION_PREDELETE:  if isLoggingEnabled: printLog("[color=brown]􀆄 PreDelete") # NOTE: Cannot print [parentEntity] here because it will always be `null` (?)
 
@@ -159,7 +164,7 @@ func _enter_tree() -> void:
 	# Find which Entity this Component belongs to, if not already set.
 	if not parentEntity:
 		var parentNode := self.get_parent()
-		
+
 		# First, what should be the most common case, see if the immediate parent node is an Entity
 		if parentNode is Entity:
 			registerEntity(parentNode) # TBD: Should we registerEntity() only from validateParent()?
@@ -170,7 +175,7 @@ func _enter_tree() -> void:
 				printLog(str("􀈅 [b]_enter_tree() → [/b]allowNonEntityParent: [b]", self.get_parent(), "[/b]"), self.logFullName)
 			else:
 				printWarning("􀈅 [b]_enter_tree(): No valid parent![/b]")
-		
+
 		# Finally, try to find an entity parent/grandparent in our tree
 		else:
 			registerEntity(findParentEntity())
@@ -186,7 +191,7 @@ func _enter_tree() -> void:
 		printLog("􀈅 [b]_enter_tree() → " + parentEntity.logName + "[/b]", self.logFullName)
 		self.checkRequiredComponents()
 	else:
-		self.coComponents.clear() # Clear our previous memory of any siblings # Dictionary.clear() is apparently better than `= {}`
+		self.coComponents = {} # Unlink from `parentEntity.components` # AVOID: Do NOT self.coComponents.clear() because that will also .clear() parentEntity's `components`!
 		if not allowNonEntityParent: printWarning("􀈅 [b]_enter_tree() with no parentEntity![/b]")
 
 
@@ -221,18 +226,40 @@ func registerEntity(newParentEntity: Entity) -> void:
 
 	if newParentEntity.registerComponent(self): # NOTE: DESIGN: The COMPONENT must call this method. See Entity.childEnteredTree() notes for explanation.
 		self.parentEntity = newParentEntity
-		self.coComponents = parentEntity.components # Meet our new siblings!
+		self.coComponents = parentEntity.components # Meet our new siblings! # NOTE: This makes both properties point to the same Dictionary; editing one edits the other etc.
 
 
 ## Removes this component from the parent [Entity] and frees (deletes) the component unless specified.
-## Components that are only removed but not freed may be re-added to any entity,
+## If [member shouldCheckGrandparentsForEntity] or [member allowNonEntityParent] then the immediate parent [Node] may not be an [Entity].
+## Components that are only removed but not freed may be re-added to any entity.
 func removeFromEntity(shouldFree: bool = true) -> void:
-	if parentEntity and parentEntity == self.get_parent():
-		# NOTE: Entity.unregisterComponent() will be called by NOTIFICATION_UNPARENTED → unregisterEntity()
-		parentEntity.remove_child(self)
-	else:
+	# NOTE: Entity.unregisterComponent() will be called by NOTIFICATION_UNPARENTED → unregisterEntity()
+	# even if the `parentEntity` is not the immediate parent Node, in case of `shouldCheckGrandparentsForEntity`
+
+	var parentNode: Node = self.get_parent()
+
+	if not parentNode:
+		printWarning("removeFromEntity(): Component has no parent!")
+		# Fall through to `shouldFree`
+
+	elif parentEntity:
+		if  parentEntity == parentNode: # Normal scenario
+			parentEntity.remove_child(self)
+
+		elif shouldCheckGrandparentsForEntity and parentEntity.is_ancestor_of(self): # Entity is not the immediate parent node
+			parentNode.remove_child(self)
+
+		else: # Faulty State: Have a `parentEntity` but it's not a parent or ancestor node
+			printWarning(str("removeFromEntity(): parentEntity: ", parentEntity.logFullName, " is not the parent node or ancestor: ", parentNode))
+			parentNode.remove_child(self) # TBD: Remove anyway if invalid state?
+	
+	elif allowNonEntityParent:
+		parentNode.remove_child(self)
+
+	else: # Have a parent Node but no parent Entity?
 		# TBD: Display a warning or would it be redundant if the component is already removed?
 		pass # DEBUG: printWarning(str("Cannot removeFromEntity: ", parentEntity))
+
 	if shouldFree: self.queue_free()
 
 
@@ -267,7 +294,7 @@ func unregisterEntity() -> void:
 	if debugMode: printDebug(str("unregisterEntity() ", get_parent()))
 	if parentEntity:
 		willRemoveFromEntity.emit()
-		self.coComponents.clear() # Dictionary.clear() is apparently better than `= {}`
+		self.coComponents = {} # Unlink from `parentEntity.components` # AVOID: Do NOT self.coComponents.clear() because that will also .clear() parentEntity's `components`!
 		parentEntity.unregisterComponent(self)
 		self.parentEntity = null # TBD: Use .set_deferred()?
 		if isLoggingEnabled: printLog("[color=brown]􀆄 Unparented")
@@ -289,15 +316,16 @@ func _exit_tree() -> void:
 # Join the serpent king!
 
 ## Returns a sibling [Component] from the [member coComponents] [Dictionary],
-## after converting the [param type] [method Script.get_global_name] to a [StringName].
-## If [param includeSubclasses] is `true` then [method Entity.findFirstComponentSubclass] is called to find the first [Component] which extends/inherits the specified type.
+## after converting the [param type] [method Script.get_global_name] to a [StringName] key.
+## NOTE: Unlike a direct [Dictionary] lookup, this method does not crash if a component/key does not exist.
+## TIP: To include subclasses such as [ShieldedHealthComponent] when searching for [HealthComponent], set [param findSubclasses] to `true` to use [method Entity.findFirstComponentSubclass] when an exact match isn't found.
 ## ALERT: PERFORMANCE: Slower performance compared to accessing the [member coComponents] [Dictionary] directly!
 ## TIP: Use this method only if a warning is needed instead of a crash, in case of a missing component.
-func findCoComponent(type: GDScript, includeSubclasses: bool = true) -> Component:
+func getCoComponent(type: Script, findSubclasses: bool = false, warnIfMissing: bool = true) -> Component:
 	# TBD: Is [Script] the correct type for the argument?
 	
 	if not is_instance_valid(parentEntity): # If there's no entity, there are no other components!
-		printWarning("findCoComponent(): No parent entity!")
+		if warnIfMissing: printWarning("getCoComponent(): No parent entity!")
 		return null
 
 	if coComponents.is_empty(): return null
@@ -305,12 +333,12 @@ func findCoComponent(type: GDScript, includeSubclasses: bool = true) -> Componen
 	var coComponent: Component = coComponents.get(type.get_global_name())
 	if not coComponent: # TBD: Use is_instance_valid()?
 
-		if includeSubclasses: # Try subclasses
+		if findSubclasses: # Try subclasses
 			coComponent = parentEntity.findFirstComponentSubclass(type)
 			if debugMode: printDebug(str("Searching for subclass of ", type, " in parentEntity: ", parentEntity, " — Found: ", coComponent))
 
-		if not coComponent: # Did we still not find any match? :(
-			printWarning(str("Missing co-component: ", type.get_global_name(), " in parent Entity: ", parentEntity.logName))
+		if warnIfMissing and not coComponent: # Did we still not find any match? :(
+			printWarning(str("Missing co-component: ", type.get_global_name(), " in parent Entity: ", parentEntity.logName, " • findSubclasses: ", findSubclasses))
 
 	return coComponent
 
@@ -408,31 +436,43 @@ static func castOrFindComponent(node: Node, componentType: GDScript, findInParen
 ## NOTE: Suppresses `debugMode = false` i.e. [method printDebug] is always printed.
 @export var debugModeTrace:	bool
 
-
 ## Defaults to the entity's [member Entity.isLoggingEnabled] if initially `false`.
 ## NOTE: Does NOT affect warnings and errors!
 var isLoggingEnabled:		bool
 
-var logName: String: # NOTE: This is a dynamic property because direct assignment would set the value before the `name` is set.
-	get: return "􀥭 " + self.name
 
-## A more detailed name including the node name, instance, and the script's `class_name`.
-var logFullName: String:
-	get: return str("􀥭 ", self, ":", self.get_script().get_global_name())
+const logSymbol:			String = "􀥭" # NOTE: Using Apple's SF Symbols, currently only supported on macOS/iOS/etc.
+var logName:				String
+var logFullName:			String ## A detailed name for logging, including the node's name in the scene, instance, and the script's `class_name`.
+var randomDebugColor:		Color  ## Used by logs and debugging tools etc. to distinguish different entities from each other.
+var randomDebugColorCode:	String
+var isLoggingInitialized:	bool
 
-## [member Component.logName] + [member Entity.logName]
-var logNameWithEntity: String:
+var logNameWithEntity:		String: ## [member Component.logName] + [member Entity.logName] if there is a [member parentEntity]
 	get: return self.logName + ((" " + parentEntity.logName) if parentEntity else "")
 
-## [member Component.logFullName] + [member Entity.logFullName]
-var logFullNameWithEntity: String:
+var logFullNameWithEntity:	String: ## [member Component.logFullName] + [member Entity.logFullName] if there is a [member parentEntity]
 	get: return self.logFullName + ((" " + parentEntity.logFullName) if parentEntity else "")
 
-var randomDebugColor: Color = Tools.getRandomQuantizedColor() ## Used by [method emitDebugBubble] etc. to distinguish different components from each other.
+
+func initializeLog() -> void:
+	if isLoggingInitialized: return
+	randomDebugColor	 = Tools.getRandomQuantizedColorHue(Tools.sequenceTenths, Tools.sequenceQuarters.slice(1).pick_random()) # Prevent low saturation
+	randomDebugColorCode = "[color=#" + randomDebugColor.to_html(false) + "]"
+	updateLogNames()
+	if not self.renamed.is_connected(self.updateLogNames): self.renamed.connect(self.updateLogNames, 0) # PERFORMANCE: Don't call Tools.connectSignal()
+	isLoggingInitialized = true
+
+
+func updateLogNames() -> void:
+	var logSymbolWithColor: String = randomDebugColorCode + logSymbol + "[/color] "
+	logName		= logSymbolWithColor + self.name
+	logFullName = str(logSymbolWithColor, self, ":", self.get_script().get_global_name())
+
 
 func printLog(message: String = "", object: Variant = self.logName) -> void:
 	if not isLoggingEnabled: return # PERFORMANCE: Callers may also check this to avoid String constructions/conversions before calling this method
-	Debug.printLog(message, object, "lightBlue", "cyan")
+	Debug.printLog(message, object, Global.Colors.logComponent, Global.Colors.logComponentName)
 
 
 ## Affected by [member debugMode], but NOT affected by [member isLoggingEnabled].
@@ -440,27 +480,27 @@ func printLog(message: String = "", object: Variant = self.logName) -> void:
 ## TIP: Even though this method checks for [member debugMode], check for that flag before calling [method printDebug] to avoid unnecessary function calls like `str()` and improve performance.
 func printDebug(message: String = "") -> void:
 	# DESIGN: isLoggingEnabled is not respected for this method because we often need to disable common "bookkeeping" logs such as creation/destruction but we need debugging info when developing new features.
-	if debugModeTrace: Debug.printTrace(message.split(", "), self.logNameWithEntity, 3) # Start further from the call stack to skip this method # TBD: Split into array by ", " for the common usage case?
-	elif debugMode: Debug.printDebug(message, logName, "cyan")
+	if debugModeTrace: Debug.printTrace(message.split(", "), logNameWithEntity, 3) # Start further from the call stack to skip this method # TBD: Split into array by ", " for the common usage case?
+	elif debugMode: Debug.printDebug(message, logName, Global.Colors.logComponentName)
 
 
 ## Calls [method Debug.printWarning]
 ## NOTE: Ignores [member isLoggingEnabled]
 func printWarning(message: String = "") -> void:
-	Debug.printWarning(message, logFullName, "cyan")
+	Debug.printWarning(message, logFullName, Global.Colors.logComponentName)
 
 
 ## Calls [method Debug.printError]
 ## NOTE: Ignores [member isLoggingEnabled]
 func printError(message: String = "") -> void:
-	Debug.printError(message, logFullName, "cyan")
+	Debug.printError(message, logFullName, Global.Colors.logComponentName)
 
 
 ## Prints an array of variables in a highlighted color, along with a short "stack trace" of recent functions and their filenames before [method Debug.printTrace] was called.
 ## TIP: Helpful for quick/temporary debugging of bugs currently under attention.
 ## Affected by [member debugMode] and only printed in debug builds.
 func printTrace(...values: Array[Variant]) -> void:
-	Debug.printTrace(values, self.logNameWithEntity, 3) # Start further from the call stack to skip this method
+	Debug.printTrace(values, logNameWithEntity, 3) # Start further from the call stack to skip this method
 
 
 ## Logs an entry showing a variable's previous and new values, IF there is a change and [member debugMode].
