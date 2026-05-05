@@ -46,6 +46,10 @@ godot-mcp get_current_scene
 
 如果 Godot 编辑器未打开，或插件未启用，大多数工具会无法连接。先打开本项目 `project.godot`，确认插件 `Godot MCP` 启用，再运行 CLI。
 
+全局注意事项：
+- 对需要数组或对象参数的工具，优先使用 `--params-json` 传参；直接把数组写成普通字符串可能会触发 MCP 参数校验失败。
+- 已知需要这样处理的工具包括 `simulate_input_sequence` 的 `sequence` 参数。
+
 
 ## Project Rules For Automation
 
@@ -374,6 +378,12 @@ godot-mcp get_input_actions
 godot-mcp simulate_action_tap --action "ui_accept" --duration_ms 100
 godot-mcp simulate_key_press --key "SPACE" --duration_ms 120
 godot-mcp simulate_mouse_click --x 400 --y 300 --button "left"
+```
+
+`simulate_input_sequence` 必须用 `--params-json` 传数组参数：
+
+```powershell
+godot-mcp simulate_input_sequence --params-json '{"sequence":[{"type":"tap","action":"ui_accept","duration_ms":50},{"type":"wait","duration_ms":20},{"type":"click","x":400,"y":300,"button":"left"}]}'
 ```
 
 自动化验证建议：
