@@ -15,6 +15,7 @@
 - Use that document for the current game's design direction, project overview, development constraints, and decision log; update it when those change.
 - For gameplay-related tasks, also read `Game/Cd_ProjectZero/Docs/Gameplay/GameplayDesign.md` and `Game/Cd_ProjectZero/Docs/DevPlan.md` before planning or implementing. Keep the work aligned with the documented gameplay direction unless the user explicitly changes the design.
 - After completing gameplay-related work, check whether `DevPlan.md` should be updated for changed scope, milestone order, acceptance criteria, or next steps, and update it when needed.
+- When implementing gameplay, inspect the existing Comedot framework `Entities/` and `Components/` first. Prefer reusing or extending existing entities/components; if something similar exists, implement the game-specific behavior as a `Game/` subclass or inherited scene rather than duplicating framework code or creating a parallel architecture.
 - Keep framework-layer guidance in this file separate from game-layer guidance in the game prompt so reusable Comedot rules stay clean.
 
 
