@@ -27,6 +27,10 @@ Lab/*
 Game/
 override.cfg
 
+#特殊addon
+AI资源库
+addons/npc_library_tool
+
 # etc
 .DS_Store
 .idea
