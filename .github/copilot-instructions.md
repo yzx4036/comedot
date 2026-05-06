@@ -70,6 +70,11 @@
 - For debug and logging, prefer `Debug` AutoLoad utilities over ad-hoc prints when touching framework code.
 
 
+## Godot MCP CLI Workflow
+- If a task needs Godot Engine interaction (editor state, scenes, nodes, running project, debugger, output/errors, runtime input, or `测试xx` / `测试<something>`), first read `_Doc/GodotMcpCliAutomationGuide.md`.
+- Treat `godot-mcp-cli` as the project-specific skill/tool workflow for relevant Godot editor/runtime operations before falling back to manual editor instructions or headless checks.
+
+
 ## Validation and Testing
 - Preferred runtime checks:
 	- Run project scene (`F5`) or specific scene (`F6`) in editor.

@@ -51,6 +51,7 @@ godot-mcp get_current_scene
 - 已知需要这样处理的工具包括 `simulate_input_sequence` 的 `sequence` 参数。
 - 根 Comedot 仓库通过 `.gitignore` 有意忽略 `Game/`。`Game/` 下的具体游戏项目按独立 Git 仓库管理，AI 自动化流程要保持框架仓库与游戏仓库分离。
 - 框架任务不需要每次用根仓库 `git status` 检查 `Game/` 状态；只有在需要确认框架层文件变化时才检查根仓库 Git 状态。游戏任务若需要 Git 状态，应在对应游戏子仓库中检查。
+- 当前置规则：当本项目需求需要 Godot 引擎交互时，包括编辑器状态、场景、节点、项目运行、调试器、输出 / 错误面板、运行时输入，或用户输入 `测试xx` / `测试<something>`，先读取本文档，并把 `godot-mcp-cli` 作为项目专用 skill / 工具流程优先调用。
 
 
 ## Project Rules For Automation
