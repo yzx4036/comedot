@@ -1,6 +1,8 @@
 # Godot MCP CLI Automation Guide
 
-本文档面向在本项目中使用 `godot-mcp-cli` 开展 Godot 编辑器自动化、运行调试和 AI 辅助开发的工作流。
+本文档面向在本项目中使用 Godot MCP CLI 开展 Godot 编辑器自动化、运行调试和 AI 辅助开发的工作流。
+
+当前本机可执行命令名是 `godot-mcp`。上游仓库与部分项目指令中可能称为 `godot-mcp-cli`；在本项目自动化执行时，以本机 `godot-mcp --list-tools` 和 `godot-mcp --help <tool>` 输出为准。
 
 依据来源：
 - 本项目根目录 `AGENTS.md`、`Conventions.md`、`HowTo.md`、`README.md`
@@ -44,6 +46,8 @@ godot-mcp get_project_info
 godot-mcp get_current_scene
 ```
 
+如果 `godot-mcp-cli` 命令不可用，但 `godot-mcp` 可用，直接使用 `godot-mcp`。不要因为文档或提示里写了 `godot-mcp-cli` 就中断测试流程。
+
 如果 Godot 编辑器未打开，或插件未启用，大多数工具会无法连接。先打开本项目 `project.godot`，确认插件 `Godot MCP` 启用，再运行 CLI。
 
 全局注意事项：
@@ -63,6 +67,11 @@ godot-mcp get_current_scene
 	- `script_commands.gd`：脚本创建、读取、编辑与当前脚本查询。
 	- `mcp_enhanced_commands.gd`：编辑器 / 运行时场景结构、输出 / 错误面板、运行时表达式、调试输出流。
 	- `mcp_asset_commands.gd`：项目文件与资源类型查询。
+
+当前实测注意事项：
+- `get_runtime_scene_structure` 和 `evaluate_runtime_expression` 在运行中场景较忙、连接切换、或调试会话状态不稳定时可能超时。它们适合辅助观察，但不要把它们作为行为验收的唯一证据。
+- 对输入、移动、交互等行为测试，优先让测试场景打印明确、低噪声的运行时状态，例如位置、状态机状态、接受到的 action intent。再用 `get_debug_output` 读取 Output 面板确认结果。
+- 输入测试结束后用 `stop_running_project` 停止场景，避免旧运行实例影响下一次测试。
 
 
 ## Project Rules For Automation
@@ -405,6 +414,35 @@ godot-mcp simulate_input_sequence --params-json '{"sequence":[{"type":"tap","act
 - 使用 `get_runtime_scene_structure` 确认目标 UI 或玩家节点已存在。
 - 输入模拟后读取 `get_debug_output` 和 `get_editor_errors`。
 - 对 Comedot 组件调试，优先启用组件 `debugMode` 或使用 `Debug` AutoLoad 输出。
+- 如果运行时树或表达式查询超时，改用测试脚本日志作为证据，不要反复阻塞在同一个查询上。
+
+键盘移动测试参考流程：
+
+```powershell
+godot-mcp rescan_filesystem
+godot-mcp clear_debug_output
+godot-mcp clear_editor_errors
+godot-mcp run_specific_scene --scene_path "res://Game/Cd_ProjectZero/Tests/Manual/Player/M9PlayerControlTest.tscn"
+```
+
+如果测试场景会自动跑验收，先等待短时间后清空 Output，再执行单独的键盘输入：
+
+```powershell
+godot-mcp clear_debug_output
+godot-mcp simulate_key_press --key "D" --duration_ms 700
+godot-mcp get_debug_output
+godot-mcp get_editor_errors
+godot-mcp stop_running_project
+```
+
+对玩家移动这类连续行为，测试脚本建议监听实际运动组件的移动信号并打印位置变化。例如 M9 中监听 `CharacterBodyComponent.didMove`，输出类似：
+
+```text
+M9 movement event | position (276.0, 240.0)
+M9 movement event | position (491.5002, 240.0)
+```
+
+这类输出比单次运行时表达式更适合作为键盘输入已驱动移动链路的证据。
 
 
 ## Current CLI Commands By Risk
