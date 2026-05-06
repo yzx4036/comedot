@@ -42,6 +42,7 @@
 - `project.godot` contains the required Godot version under `config/features` and other metadata. Comedot always targets the latest version (release or beta).
 - Refer to the official documentation when needed, at `https://docs.godotengine.org/en/latest/`
 - When a request in this project needs Godot Engine interaction (editor state, scenes, nodes, running project, debugger, output/errors, runtime input, or `测试xx` / `测试<something>`), first read `_Doc/GodotMcpCliAutomationGuide.md` and treat `godot-mcp-cli` as the project-specific skill/tool workflow to use first when applicable.
+- For Godot MCP operation, implementation, or testing tasks, use the local plugin command processors under `addons/godot_mcp/commands/` as the authoritative map of available Godot-side operations, then call the corresponding `godot-mcp-cli` tools where applicable.
 - Run locally from the editor (F5) or run individual scenes (F6) for focused testing.
 - To verify scripts and check parser errors etc. run Godot in "headless" mode by passing the following flags to the Godot executable: `--headless --check-only --path [path] --script [filename]`
 	- To run for N frames, use `--quit-after [frame count]`
