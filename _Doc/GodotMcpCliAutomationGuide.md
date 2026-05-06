@@ -53,6 +53,16 @@ godot-mcp get_current_scene
 - 框架任务不需要每次用根仓库 `git status` 检查 `Game/` 状态；只有在需要确认框架层文件变化时才检查根仓库 Git 状态。游戏任务若需要 Git 状态，应在对应游戏子仓库中检查。
 - 当前置规则：当本项目需求需要 Godot 引擎交互时，包括编辑器状态、场景、节点、项目运行、调试器、输出 / 错误面板、运行时输入，或用户输入 `测试xx` / `测试<something>`，先读取本文档，并把 `godot-mcp-cli` 作为项目专用 skill / 工具流程优先调用。
 - 使用 Godot MCP 进行操作、实现需求或测试时，可参考 `addons/godot_mcp/commands/` 下的本地命令处理器作为 Godot 侧能力来源；实际执行优先通过 `godot-mcp-cli` 暴露的对应工具完成。
+- 进行输入操作、节点创建、场景操作、实现需求、测试和验收时，优先映射到 `addons/godot_mcp/commands/` 中的对应处理器：
+	- `input_commands.gd`：鼠标、键盘、InputMap action、输入序列模拟。
+	- `node_commands.gd`：创建节点、删除节点、读取 / 修改节点属性、列出子节点。
+	- `scene_commands.gd`：创建、打开、保存、重载、删除场景，以及读取当前场景结构。
+	- `project_commands.gd`：运行项目、运行当前场景、运行指定场景、停止运行、读取项目信息。
+	- `debugger_commands.gd`：断点、暂停 / 恢复、单步、调试器状态、调用栈相关操作。
+	- `editor_commands.gd`、`editor_script_commands.gd`：编辑器状态、资源创建、文件系统重扫、编辑器脚本执行。
+	- `script_commands.gd`：脚本创建、读取、编辑与当前脚本查询。
+	- `mcp_enhanced_commands.gd`：编辑器 / 运行时场景结构、输出 / 错误面板、运行时表达式、调试输出流。
+	- `mcp_asset_commands.gd`：项目文件与资源类型查询。
 
 
 ## Project Rules For Automation
