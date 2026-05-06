@@ -13,6 +13,8 @@
 - `Game/Cd_ProjectZero/Docs/ProjectPrompt.md` is a Chinese-language document; expect mixed Chinese and English for paths, identifiers, scene names, APIs, and technical terms.
 - Before reading or summarizing game plans / memory, preserve the original mixed-language meaning instead of translating code symbols or file paths.
 - Use that document for the current game's design direction, project overview, development constraints, and decision log; update it when those change.
+- For gameplay-related tasks, also read `Game/Cd_ProjectZero/Docs/Gameplay/GameplayDesign.md` and `Game/Cd_ProjectZero/Docs/DevPlan.md` before planning or implementing. Keep the work aligned with the documented gameplay direction unless the user explicitly changes the design.
+- After completing gameplay-related work, check whether `DevPlan.md` should be updated for changed scope, milestone order, acceptance criteria, or next steps, and update it when needed.
 - Keep framework-layer guidance in this file separate from game-layer guidance in the game prompt so reusable Comedot rules stay clean.
 
 
