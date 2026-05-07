@@ -44,6 +44,7 @@
 - When a request in this project needs Godot Engine interaction (editor state, scenes, nodes, running project, debugger, output/errors, runtime input, or `测试xx` / `测试<something>`), first read `_Doc/GodotMcpCliAutomationGuide.md` and treat `godot-mcp-cli` as the project-specific skill/tool workflow to use first when applicable.
 - For Godot MCP operation, implementation, or testing tasks, use the local plugin command processors under `addons/godot_mcp/commands/` as the authoritative map of available Godot-side operations, then call the corresponding `godot-mcp-cli` tools where applicable.
 - For MCP-assisted input, node, scene, implementation, testing, and acceptance workflows, map the need to the relevant command processor first: `input_commands.gd` for mouse/keyboard/actions, `node_commands.gd` for node operations, `scene_commands.gd` for scene operations, plus project/debugger/editor/script/enhanced/asset command processors as needed.
+- For runtime movement, interaction, attacks, and UI clicking, use `input_commands.gd` capabilities actively: prefer project InputMap actions, and combine keyboard, mouse, click/drag, and input sequences when needed to reproduce player behavior.
 - Run locally from the editor (F5) or run individual scenes (F6) for focused testing.
 - To verify scripts and check parser errors etc. run Godot in "headless" mode by passing the following flags to the Godot executable: `--headless --check-only --path [path] --script [filename]`
 	- To run for N frames, use `--quit-after [frame count]`

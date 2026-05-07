@@ -67,6 +67,7 @@ godot-mcp get_current_scene
 	- `script_commands.gd`：脚本创建、读取、编辑与当前脚本查询。
 	- `mcp_enhanced_commands.gd`：编辑器 / 运行时场景结构、输出 / 错误面板、运行时表达式、调试输出流。
 	- `mcp_asset_commands.gd`：项目文件与资源类型查询。
+- 对移动、交互、攻击、UI 点击等运行时行为测试，要善用 `input_commands.gd` 对应能力：优先选择项目 InputMap action（如移动、确认、攻击、交互），必要时组合键盘按键、鼠标点击 / 拖拽和 `simulate_input_sequence` 输入序列来还原玩家操作。
 
 当前实测注意事项：
 - `get_runtime_scene_structure` 和 `evaluate_runtime_expression` 在运行中场景较忙、连接切换、或调试会话状态不稳定时可能超时。它们适合辅助观察，但不要把它们作为行为验收的唯一证据。

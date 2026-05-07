@@ -79,6 +79,7 @@
 - Treat `godot-mcp-cli` as the project-specific skill/tool workflow for relevant Godot editor/runtime operations before falling back to manual editor instructions or headless checks.
 - For MCP-driven operation, implementation, and testing, inspect `addons/godot_mcp/commands/` when needed to understand the Godot-side command behavior and parameters, then invoke the matching `godot-mcp-cli` tool.
 - Use `input_commands.gd` for mouse/keyboard/InputMap actions, `node_commands.gd` for node creation/properties, `scene_commands.gd` for scene operations, and the project/debugger/editor/script/enhanced/asset command processors for implementation, test, and acceptance workflows.
+- For runtime behavior validation, actively use mouse, keyboard, InputMap actions, and input sequences to test movement, interaction, attacks, and UI clicks.
 
 
 ## Validation and Testing
