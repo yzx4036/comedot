@@ -36,16 +36,20 @@ A practical guide for contributors and AI agents working on Comedot framework co
 
 ## 4) Startup Flow (Boot Sequence)
 Current default startup flow is:
-1. `project.godot` sets `run/main_scene` to `Scenes/Launch/Logo/IOLogoScene.tscn`.
-2. `Scenes/Launch/Logo/IOLogoScene.gd` extends `Scripts/Start.gd`.
-3. `Start._enter_tree()` runs early and calls `setupGameState()`.
-4. `Start._ready()` calls `startComedot()` then `applyGlobalFlags()`.
-5. `Start` applies debug flags, initializes music via `GlobalSonic`, and configures/removes `TurnBasedCoordinator` based on settings.
-6. Logo scene transitions via `SceneManager.transitionToScene(preload("res://Scenes/Launch/GameFrame.tscn"), false)`.
-7. `Scenes/Launch/GameFrame.tscn` also attaches `Scripts/Start.gd` at root, ensuring framework startup assumptions remain true.
+1. AutoLoads are created in `project.godot` order: `Global`, `Settings`, `SceneManager`, `GlobalInput`, `GameState`, `GlobalUI`, `GlobalSonic`, `TurnBasedCoordinator`, `Debug`, then optional plugin AutoLoads.
+2. `Settings` loads user preferences during `NOTIFICATION_PARENTED`, before normal `_enter_tree()` / `_ready()` scene startup.
+3. `project.godot` sets `run/main_scene` to `Scenes/Launch/Logo/IOLogoScene.tscn`.
+4. `Scenes/Launch/Logo/IOLogoScene.gd` extends `Scripts/Start.gd`.
+5. `Start._enter_tree()` runs early and calls `setupGameState()`.
+6. `Start._ready()` calls `startComedot()` then `applyGlobalFlags()`.
+7. `Start` applies debug flags, initializes music via `GlobalSonic`, and configures/removes `TurnBasedCoordinator` based on settings.
+8. Logo scene transitions via `SceneManager.transitionToScene(preload("res://Scenes/Launch/GameFrame.tscn"), false)`.
+9. `Scenes/Launch/GameFrame.tscn` also attaches `Scripts/Start.gd` at root, ensuring framework startup assumptions remain true.
 
 Important startup rule:
 - If you subclass `Start`, overridden `_enter_tree()` and `_ready()` must call `super`.
+- `Debug.performFrameworkChecks()` depends on `Start` setting `Global.hasStartScript`; if the warning label reports a missing `Start.gd`, verify the root script and `super` calls first.
+- For AutoLoad lifecycle logs, prefer `Debug.printAutoLoadLog()` over direct `print()` or regular debug logs.
 
 
 ## 5) Scene and Navigation Practices
@@ -79,4 +83,4 @@ godot --headless --check-only --path /absolute/path/to/comedot --script res://pa
 - Editing only a component script while forgetting its paired scene requirements.
 - Introducing broad refactors without a direct request.
 - Replacing established project patterns (`SceneManager`, `Debug`, `Start`) with parallel one-off utilities.
-
+- Adding AutoLoad startup logs through direct `print()` calls instead of the framework `Debug.printAutoLoadLog()` path.

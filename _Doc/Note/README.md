@@ -3,8 +3,12 @@
 Comedot learning notes index.
 
 ## Quick links
+- [FrameworkLayerChanges.md](../FrameworkLayerChanges.md)
 - [LearningRoadmap.md](./LearningRoadmap.md)
+- [AutoloadAndStartFlow.md](./00-Concepts/AutoloadAndStartFlow.md)
+- [DebugAndAutoloadLogging.md](./00-Concepts/DebugAndAutoloadLogging.md)
 - [GodotExportAttributes.md](./00-Concepts/GodotExportAttributes.md)
+- [StartReading-StartGd.md](./30-Flow/StartReading-StartGd.md)
 - [Note template](./Templates/NoteTemplate.md)
 
 ## Structure

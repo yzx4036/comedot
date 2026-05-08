@@ -19,11 +19,12 @@ Source: `Scripts/Start.gd`
 	- `applyGlobalFlags()` -> pushes exported settings into AutoLoads.
 
 ## Lifecycle and why it is ordered this way
-1. `_enter_tree()` runs first and calls `setupGameState()`.
-2. `setupGameState()` updates `Settings.mainGameScenePath`, merges `GameState.globalData`, and spawns optional GameState nodes.
-3. `_ready()` runs later and calls `startComedot()`.
-4. `startComedot()` marks `Global.hasStartScript`, runs framework checks, then applies global flags.
-5. `applyGlobalFlags()` configures debug/UI, music, and turn-based coordinator behavior.
+1. AutoLoads initialize before the startup scene. `Settings` may already have loaded user preferences in `NOTIFICATION_PARENTED`.
+2. `_enter_tree()` runs first and calls `setupGameState()`.
+3. `setupGameState()` updates `Settings.mainGameScenePath`, merges `GameState.globalData`, and spawns optional GameState nodes.
+4. `_ready()` runs later and calls `startComedot()`.
+5. `startComedot()` marks `Global.hasStartScript`, runs framework checks, then applies global flags.
+6. `applyGlobalFlags()` configures debug/UI, music, and turn-based coordinator behavior.
 
 This order ensures game-wide state is available before children that depend on it complete `_ready()`.
 
@@ -50,6 +51,8 @@ This order ensures game-wide state is available before children that depend on i
 	- overridden `_enter_tree()` and `_ready()` must call `super`.
 
 ## Gotchas
+- `Settings` does not wait for `_ready()` to load the config file; avoid adding startup code that assumes Settings is still unloaded during AutoLoad parenting.
+- Early AutoLoad logs should use `Debug.printAutoLoadLog()` instead of `Debug.printLog()` when called before normal debug-frame state is reliable.
 - `TurnBasedCoordinator` is intentionally removed when `isTurnBasedGame` is false; accessing it later can crash by design.
 - Delay exports use minimum guard (`minimumTurnDelay = 0.05`) to avoid timer errors.
 - Debug visual toggles check for node existence in some setters (`if Debug.debugWindow`).
@@ -60,4 +63,3 @@ This order ensures game-wide state is available before children that depend on i
 - [ ] Confirm desired startup music mode.
 - [ ] Confirm turn-based flag matches scene/game mode.
 - [ ] Confirm `GameState` injected data keys do not accidentally overwrite required values.
-
