@@ -3,6 +3,7 @@
 ## What This Repository Is
 - Comedot is a reusable Godot 2D gameplay framework centered on composition (Entities + Components), not inheritance-heavy monolithic scripts.
 - The framework lives outside `Game/`; `Game/` is game-specific and should only be changed when the task is explicitly about a game implementation.
+- This workspace currently has two separate Git repositories: the root repository is the Comedot framework repository, and `Game/` contains the business/game project repository. Keep framework and game Git status, branches, merges, commits, and history separate.
 - `Game/` is intentionally ignored by the root Comedot `.gitignore`; game project folders under it are expected to be independent Git repositories. Keep framework and game Git workflows separate.
 - Use `project.godot` as the runtime truth, especially `config/features` (currently `4.7`) and enabled autoloads/plugins.
 
@@ -72,6 +73,17 @@
 - For turn-based features, integrate with `TurnBasedCoordinator` and `TurnBasedEntity`/turn-based components instead of inventing parallel flow.
 - For scene transitions/navigation, use `SceneManager` APIs (`transitionToScene`, stack helpers).
 - For debug and logging, prefer `Debug` AutoLoad utilities over ad-hoc prints when touching framework code.
+
+
+## Git Automation
+- If the user says `合并up_stream到dev`, perform the Git Flow merge workflow automatically in the current relevant repository:
+	1. Start a new feature branch with `git flow feature start`, using a clear name such as `merge-up_stream-to-dev`.
+	2. Fetch / pull the remote `up_stream` branch and merge that remote update into the new feature branch.
+	3. Resolve conflicts directly when the correct resolution is clear. If not, stop and ask the user to resolve the conflict manually.
+	4. Finish the feature with `git flow feature finish`, merging it back into the Git Flow development branch, expected to be `dev`.
+	5. Analyze the pulled `up_stream` changes and improve relevant docs when behavior, workflow, architecture, gameplay planning, MCP/Godot automation guidance, or repository rules changed.
+- If the user says `提交dev`, analyze the current relevant repository changes and create a commit on `dev` or the current Git Flow development branch. Use Chinese for the commit description. Add `[feat]` for feature additions and `[fix]` for bug fixes when appropriate; use a concise Chinese title without those prefixes for documentation, planning, refactor, chore, or mixed maintenance work.
+- Keep root Comedot Git workflow separate from the `Game/` business repository. Run Git automation only in the repository that matches the user's target context. Do not push unless explicitly requested.
 
 
 ## Godot MCP CLI Workflow

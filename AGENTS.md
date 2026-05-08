@@ -22,6 +22,7 @@
 - `Temporary/`, `Lab/`: Transient experiments. All files in these folders should always be ignored. Disregard any errors or warnings in files in those folders. If a file in these folders prevents compilation/parsing/export, consider removing that file.
 - `Scripts/Tools/Tools.gd`, `*Tools.gd`: Files containing global static standalone helper functions for builtin Godot nodes & types. This is a workaround for the inability to extend builtin Godot types with custom methods without using subclasses.
 - `Game/`: Game-specific files that are NOT part of the Comedot framework itself. These files should be ignored when referring to the framework, and only accessed when considering an actual game being made with Comedot. Everything outside the `Game/` subtree is part of the framework that is shared between multiple games. When generating code for a game, only the files in the `Game/` subtree should be modified. `Game/AGENTS.override.md` takes precedence for any activity inside the `Game/` subtree.
+- This project currently has two separate Git repositories: the root repository is the Comedot framework repository, and the `Game/` directory contains the business/game project repository. Treat them as independent repositories for all Git status, branch, merge, commit, and history operations.
 - The root Comedot repository intentionally ignores `Game/` via `.gitignore`: game project folders under `Game/` are managed as independent Git repositories. Keep this separation intact. Framework tasks should not use the root repository Git state to reason about `Game/` changes, and do not repeatedly run root `git status` just to check `Game/` work.
 
 
@@ -55,6 +56,18 @@
 - Tests are represented as Godot scenes/scripts under `Tests/` to be played manually. `*Test.tscn` with companion `.gd` where needed.
 - Run tests by opening a test scene and manually running it in the editor.
 - No formal coverage targets are defined; keep regression tests near the relevant feature.
+
+
+## Git Automation Rules
+- When the user says `合并up_stream到dev`, automatically execute the repository merge workflow with Git Flow:
+	1. Use `git flow feature start` to create a new feature branch with a clear merge name such as `merge-up_stream-to-dev`.
+	2. On that feature branch, fetch / pull the remote `up_stream` branch and merge the remote update into the feature branch.
+	3. If merge conflicts occur, resolve them autonomously when the correct resolution is clear, then continue the merge. If the conflict cannot be resolved safely, stop and notify the user to resolve it manually.
+	4. After the merge is clean, use `git flow feature finish` to finish the feature and merge it back into the Git Flow development branch, which is expected to be `dev` for this workflow.
+	5. Analyze the changes pulled from `up_stream` and update the relevant documentation when the merge changes project behavior, workflow, architecture, gameplay plan, MCP/Godot automation guidance, or repository rules.
+- When the user says `提交dev`, automatically analyze the current relevant repository changes and create an appropriate commit on `dev` or the current Git Flow development branch. Use a Chinese commit description. Add a concise prefix when appropriate, especially `[feat]` for feature additions and `[fix]` for bug fixes; choose another clear Chinese title without those prefixes when the change is documentation, planning, refactor, chore, or mixed maintenance work.
+- Apply these workflows to the current relevant Git repository only. The root repository is for Comedot framework changes; the `Game/` repository is for business/game project changes. Do not mix branches, commits, merges, or status checks across the two repositories.
+- Do not push the resulting branch or `dev` to a remote unless the user explicitly asks.
 
 
 ## Code Review
