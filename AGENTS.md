@@ -6,7 +6,7 @@
 - This project is a template for the Godot game engine.
 - It's a component-based framework similar to ECS for making 2D games.
 - It's open-source and hosted at https://github.com/InvadingOctopus/comedot
-- For more details, see `README.md`
+- For details, see `README.md`
 
 
 ## Folder Structure & Module Organization
@@ -65,6 +65,7 @@
 - The contents of `Game/` are subject to the instructions in `Game/AGENTS.override.md`
 - Treat `Game/` as a separate project/repository boundary. For framework review, ignore `Game/` and its Git state. For game work, use `Game/AGENTS.override.md` and the active game project's own workflow instead of the root Comedot repository state.
 - If an inline source code renderer does not support syntax highlighting for GDScript, use Swift syntax highlighting for fenced GDScript code blocks, as it closely resembles GDScript highlighting.
+
 
 ## Coding Style & Naming Conventions
 Follow the guidelines in `Conventions.md`, which includes these key rules:
