@@ -76,11 +76,11 @@
 
 
 ## Git Automation
-- If the user says `合并up_stream到dev`, perform the Git Flow merge workflow automatically in the current relevant repository:
-	1. Start a new feature branch with `git flow feature start`, using a clear name such as `merge-up_stream-to-dev`.
+- If the user says `合并up_stream到dev`, perform the Git Flow style merge workflow automatically in the current relevant repository. Follow Git Flow's feature branch model and completion concept; do not require the literal `git flow` command when normal Git commands can implement the same branch workflow.
+	1. Start a new feature branch with the configured Git Flow feature prefix, using a clear name such as `feature/merge-up_stream-to-dev`.
 	2. Fetch / pull the remote `up_stream` branch and merge that remote update into the new feature branch.
 	3. Resolve conflicts directly when the correct resolution is clear. If not, stop and ask the user to resolve the conflict manually.
-	4. Finish the feature with `git flow feature finish`, merging it back into the Git Flow development branch, expected to be `dev`.
+	4. Finish the feature in the Git Flow sense by merging it back into the Git Flow development branch, expected to be `dev` or the repository-configured development branch, then remove the completed feature branch when appropriate.
 	5. Analyze the pulled `up_stream` changes and improve relevant docs when behavior, workflow, architecture, gameplay planning, MCP/Godot automation guidance, or repository rules changed.
 - If the user says `提交dev`, analyze the current relevant repository changes and create a commit on `dev` or the current Git Flow development branch. Use Chinese for the commit description. Add `[feat]` for feature additions and `[fix]` for bug fixes when appropriate; use a concise Chinese title without those prefixes for documentation, planning, refactor, chore, or mixed maintenance work.
 - Keep root Comedot Git workflow separate from the `Game/` business repository. Run Git automation only in the repository that matches the user's target context. Do not push unless explicitly requested.

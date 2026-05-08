@@ -59,11 +59,11 @@
 
 
 ## Git Automation Rules
-- When the user says `合并up_stream到dev`, automatically execute the repository merge workflow with Git Flow:
-	1. Use `git flow feature start` to create a new feature branch with a clear merge name such as `merge-up_stream-to-dev`.
+- When the user says `合并up_stream到dev`, automatically execute the repository merge workflow using the Git Flow branching model and completion concept. This means following Git Flow's feature branch workflow; it does not require calling the literal `git flow` command if the same workflow is implemented with normal Git commands.
+	1. Create a new feature branch with the configured Git Flow feature prefix and a clear merge name such as `feature/merge-up_stream-to-dev`.
 	2. On that feature branch, fetch / pull the remote `up_stream` branch and merge the remote update into the feature branch.
 	3. If merge conflicts occur, resolve them autonomously when the correct resolution is clear, then continue the merge. If the conflict cannot be resolved safely, stop and notify the user to resolve it manually.
-	4. After the merge is clean, use `git flow feature finish` to finish the feature and merge it back into the Git Flow development branch, which is expected to be `dev` for this workflow.
+	4. After the merge is clean, finish the feature in the Git Flow sense: merge the feature branch back into the Git Flow development branch, which is expected to be `dev` or the repository-configured development branch, then remove the completed feature branch when appropriate.
 	5. Analyze the changes pulled from `up_stream` and update the relevant documentation when the merge changes project behavior, workflow, architecture, gameplay plan, MCP/Godot automation guidance, or repository rules.
 - When the user says `提交dev`, automatically analyze the current relevant repository changes and create an appropriate commit on `dev` or the current Git Flow development branch. Use a Chinese commit description. Add a concise prefix when appropriate, especially `[feat]` for feature additions and `[fix]` for bug fixes; choose another clear Chinese title without those prefixes when the change is documentation, planning, refactor, chore, or mixed maintenance work.
 - Apply these workflows to the current relevant Git repository only. The root repository is for Comedot framework changes; the `Game/` repository is for business/game project changes. Do not mix branches, commits, merges, or status checks across the two repositories.
