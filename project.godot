@@ -20,7 +20,7 @@ config/version="4.7.0.10.42"
 config/tags=PackedStringArray("components", "framework", "ecs", "plugin", "template")
 run/main_scene="uid://7hpq16neqhai"
 config/project_settings_override="res://Game/override.cfg"
-config/features=PackedStringArray("4.7")
+config/features=PackedStringArray("4.7", "C#")
 run/max_fps=60
 boot_splash/bg_color=Color(0.086, 0.004, 0.2, 1)
 boot_splash/stretch_mode=0
@@ -76,7 +76,7 @@ naming/script_name_casing=1
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/Comedot/plugin.cfg", "res://addons/godot_mcp/plugin.cfg", "res://addons/npc_library_tool/plugin.cfg")
+enabled=PackedStringArray("res://addons/Comedot/plugin.cfg", "res://addons/godot_mcp/plugin.cfg")
 
 [file_customization]
 
