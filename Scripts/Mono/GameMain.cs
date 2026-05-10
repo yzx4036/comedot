@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Godot;
 using Y0Studio.Config;
 using Y0Studio.Config.Examples;
@@ -7,15 +6,16 @@ namespace Game;
 
 public partial class GameMain : Node
 {
+    [Export(PropertyHint.Dir)]
+    public string ConfigDirectory { get; set; } = ConfigMgr.DefaultConfigDirectory;
+
     public ConfigMgr ConfigMgr { get; private set; }
 
     public override void _Ready()
     {
-        // 使用 -c cs-dotnet-json^ -d json 导出时
-        // Tables = new Tables(LoadJson);
-        // 使用-c cs-bin^ -d bin 导出时
-        ConfigMgr = new ConfigMgr();
+        ConfigMgr = new ConfigMgr(ConfigDirectory);
         DebugPrintConfig();
+        RefreshConfigViews();
     }
 
     public override void _ExitTree()
@@ -24,13 +24,16 @@ public partial class GameMain : Node
         ConfigMgr = null;
     }
 
-    private JsonElement LoadJson(string name)
+
+    private void RefreshConfigViews()
     {
-        var file = FileAccess.Open($"{ConfigMgr.DefaultConfigDirectory}/{name}.json", FileAccess.ModeFlags.Read);
-        var text = file.GetAsText();
-        file.Close();
-        var jsonDocument = JsonDocument.Parse(text);
-        return jsonDocument.RootElement;
+        foreach (Node node in GetTree().GetNodesInGroup("lubanConfigViews"))
+        {
+            if (node is ConfigsDetailView configView)
+            {
+                configView.Refresh();
+            }
+        }
     }
 
 
@@ -39,13 +42,19 @@ public partial class GameMain : Node
     {
         // Tables.TbExampleBasic 对应配置表 ExampleBasic
         var item = TbExampleBasic.Instance.GetOrDefault(1001);
+        if (item == null)
+        {
+            GD.PushError("Luban config test failed: examples_tbexamplebasic.bytes does not contain id 1001.");
+            return;
+        }
+
         // 通过id获取记录
-        GD.Print(string.Format("{0} {1} {2}", item.Id, item.Name, item.Type));
+        GD.Print($"Luban config loaded: {item.Id} {item.Name} {item.Type}");
         // 获取所有记录
         var dataList = TbExampleBasic.Instance.DataList;
         for (int i = 0; i < dataList.Count; i++)
         {
-            GD.Print(string.Format("{0} {1} {2}", dataList[i].Id, dataList[i].Name, dataList[i].Type));
+            GD.Print($"{dataList[i].Id} {dataList[i].Name} {dataList[i].Type}");
         }
     }
 }
