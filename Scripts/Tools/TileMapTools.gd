@@ -459,7 +459,7 @@ static func populateTileMap(
 			# Then convert the offset inside the used rectangle to actual TileMap coordinates.
 			coordinates = mapRect.position + Vector2i(
 				cellIndex % mapRect.size.x,
-				cellIndex / mapRect.size.x) # CHECK: Should we use `floori(float(cellIndex) / mapRect.size.x)`? Is floori() the same as integer trunctation anyway? e.g. 5 / 2 == 2 instead of 2.5
+				floori(float(cellIndex) / float(mapRect.size.x)))
 			
 			# 1.6: On the next pass, [A,D,C] → Select A, swap with C → [C,D | A,B] and so on...
 
@@ -467,7 +467,7 @@ static func populateTileMap(
 		else:
 			coordinates = mapRect.position + Vector2i(
 				count % mapRect.size.x,
-				count / mapRect.size.x) # TBD: Use floori() with `float` cast?
+				floori(float(count) / float(mapRect.size.x)))
 
 		# 2: Position the new node
 		if parent == map:
