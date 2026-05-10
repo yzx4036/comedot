@@ -14,25 +14,37 @@ namespace Y0Studio.Config
 	/// </summary>
 	public class ConfigMgr : IDisposable
 	{
-		private const string ConfigNamespacePrefix = "Y0Studio.Config";
+		public const string DefaultConfigNamespacePrefix = "Y0Studio.Config";
 		public const string DefaultConfigDirectory = "res://assets/configs/tables";
 
 		private readonly ConcurrentDictionary<Type, IConfigSingleton> _tables = new();
 		private readonly Dictionary<string, IConfigSingleton> _tablesByConfigName = new(StringComparer.OrdinalIgnoreCase);
 
-		public ConfigMgr() : this(DefaultConfigDirectory)
+		public string ConfigDirectory { get; }
+		public string ConfigNamespacePrefix { get; }
+		public IReadOnlyCollection<string> ConfigNames => _tablesByConfigName.Keys.ToArray();
+
+		public ConfigMgr() : this(DefaultConfigDirectory, DefaultConfigNamespacePrefix)
 		{
 		}
 
-		public ConfigMgr(string configDirectory) : this(configDirectory, name => LoadByteBuf(configDirectory, name))
+		public ConfigMgr(string configDirectory) : this(configDirectory, DefaultConfigNamespacePrefix)
 		{
 		}
 
-		public ConfigMgr(Func<string, ByteBuf> loader) : this(DefaultConfigDirectory, loader)
+		public ConfigMgr(string configDirectory, string configNamespacePrefix) : this(configDirectory, configNamespacePrefix, name => LoadByteBuf(configDirectory, name))
 		{
 		}
 
-		private ConfigMgr(string configDirectory, Func<string, ByteBuf> loader)
+		public ConfigMgr(Func<string, ByteBuf> loader) : this(DefaultConfigDirectory, DefaultConfigNamespacePrefix, loader)
+		{
+		}
+
+		public ConfigMgr(string configDirectory, Func<string, ByteBuf> loader) : this(configDirectory, DefaultConfigNamespacePrefix, loader)
+		{
+		}
+
+		private ConfigMgr(string configDirectory, string configNamespacePrefix, Func<string, ByteBuf> loader)
 		{
 			if (loader == null)
 			{
@@ -44,10 +56,12 @@ namespace Y0Studio.Config
 				throw new ArgumentException("配置目录不能为空", nameof(configDirectory));
 			}
 
+			ConfigDirectory = NormalizeConfigDirectory(configDirectory);
+			ConfigNamespacePrefix = string.IsNullOrWhiteSpace(configNamespacePrefix) ? DefaultConfigNamespacePrefix : configNamespacePrefix.Trim();
 
-			foreach (var tableType in DiscoverConfigTypes())
+			foreach (var tableType in DiscoverConfigTypes(ConfigNamespacePrefix))
 			{
-				var configName = BuildConfigName(tableType);
+				var configName = BuildConfigName(tableType, ConfigNamespacePrefix);
 				var byteBuf = loader(configName) ?? throw new FileNotFoundException($"配置表加载失败: {configName}");
 				var table = CreateTable(tableType, byteBuf);
 				RegisterTable(configName, table);
@@ -101,7 +115,7 @@ namespace Y0Studio.Config
 			_tablesByConfigName.Clear();
 		}
 
-		private static IReadOnlyList<Type> DiscoverConfigTypes()
+		private static IReadOnlyList<Type> DiscoverConfigTypes(string configNamespacePrefix)
 		{
 			var assembly = typeof(ConfigMgr).Assembly;
 			var allTypes = GetLoadableTypes(assembly);
@@ -110,6 +124,8 @@ namespace Y0Studio.Config
 				.Where(type => type is { IsClass: true, IsAbstract: false })
 				.Where(type => typeof(IConfigSingleton).IsAssignableFrom(type))
 				.Where(type => type.GetCustomAttribute<ConfigAttribute>() != null)
+				.Where(type => string.IsNullOrWhiteSpace(configNamespacePrefix)
+					|| (type.Namespace?.StartsWith(configNamespacePrefix, StringComparison.Ordinal) ?? false))
 				.OrderBy(type => type.FullName, StringComparer.Ordinal)
 				.ToArray();
 		}
@@ -126,12 +142,12 @@ namespace Y0Studio.Config
 			}
 		}
 
-		private static string BuildConfigName(Type tableType)
+		private static string BuildConfigName(Type tableType, string configNamespacePrefix)
 		{
 			var namespaceSuffix = tableType.Namespace;
-			if (!string.IsNullOrEmpty(namespaceSuffix) && namespaceSuffix.StartsWith(ConfigNamespacePrefix, StringComparison.Ordinal))
+			if (!string.IsNullOrEmpty(namespaceSuffix) && namespaceSuffix.StartsWith(configNamespacePrefix, StringComparison.Ordinal))
 			{
-				namespaceSuffix = namespaceSuffix.Substring(ConfigNamespacePrefix.Length).Trim('.');
+				namespaceSuffix = namespaceSuffix.Substring(configNamespacePrefix.Length).Trim('.');
 			}
 
 			var parts = new List<string>();

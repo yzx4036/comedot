@@ -1,4 +1,5 @@
 using Godot;
+using Comedot.Config;
 using Y0Studio.Config;
 using Y0Studio.Config.Examples;
 
@@ -9,18 +10,36 @@ public partial class GameMain : Node
     [Export(PropertyHint.Dir)]
     public string ConfigDirectory { get; set; } = ConfigMgr.DefaultConfigDirectory;
 
+    [Export]
+    public string ConfigNamespacePrefix { get; set; } = ConfigMgr.DefaultConfigNamespacePrefix;
+
+    private LubanConfigService _configService;
+
     public ConfigMgr ConfigMgr { get; private set; }
 
     public override void _Ready()
     {
-        ConfigMgr = new ConfigMgr(ConfigDirectory);
+        _configService = new LubanConfigService
+        {
+            ConfigDirectory = ConfigDirectory,
+            ConfigNamespacePrefix = ConfigNamespacePrefix,
+            LoadOnReady = false,
+        };
+        AddChild(_configService);
+
+        if (!_configService.LoadConfigs())
+        {
+            return;
+        }
+
+        ConfigMgr = _configService.ConfigMgr;
         DebugPrintConfig();
         RefreshConfigViews();
     }
 
     public override void _ExitTree()
     {
-        ConfigMgr?.Dispose();
+        _configService?.UnloadConfigs();
         ConfigMgr = null;
     }
 
