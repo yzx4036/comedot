@@ -95,12 +95,77 @@ public partial class LubanConfigService : Node
 
     public bool HasRecord(string configName, Variant key)
     {
-        return TryGetRecordObject(configName, key, out _);
+        return TryGetRecordObject(configName, key, out _, false);
+    }
+
+    public string GetTableMode(string configName)
+    {
+        if (!TryGetTable(configName, out var table, false))
+        {
+            return string.Empty;
+        }
+
+        if (HasProperty(table, "DataMap"))
+        {
+            return "map";
+        }
+
+        if (HasProperty(table, "DataList"))
+        {
+            return "list";
+        }
+
+        if (HasProperty(table, "Data"))
+        {
+            return "one";
+        }
+
+        return string.Empty;
+    }
+
+    public Godot.Collections.Dictionary ValidateRecord(string configName, Variant key, Godot.Collections.Array requiredFields)
+    {
+        var result = new Godot.Collections.Dictionary
+        {
+            ["isValid"] = false,
+            ["table"] = configName,
+            ["key"] = key,
+            ["message"] = string.Empty,
+            ["missingFields"] = new Godot.Collections.Array(),
+        };
+
+        if (!TryGetRecordObject(configName, key, out var record, false))
+        {
+            result["message"] = $"Record not found. Table: {configName}. Key: {key}";
+            return result;
+        }
+
+        var missingFields = new Godot.Collections.Array();
+        foreach (var requiredField in requiredFields)
+        {
+            var fieldName = requiredField.AsString();
+            if (string.IsNullOrWhiteSpace(fieldName))
+            {
+                continue;
+            }
+
+            if (!TryGetMemberValue(record, fieldName, out _))
+            {
+                missingFields.Add(fieldName);
+            }
+        }
+
+        result["missingFields"] = missingFields;
+        result["isValid"] = missingFields.Count == 0;
+        result["message"] = missingFields.Count == 0
+            ? $"Record is valid. Table: {configName}. Key: {key}"
+            : $"Record is missing required fields. Table: {configName}. Key: {key}";
+        return result;
     }
 
     public Godot.Collections.Dictionary GetRecord(string configName, Variant key)
     {
-        if (!TryGetRecordObject(configName, key, out var record))
+        if (!TryGetRecordObject(configName, key, out var record, true))
         {
             return new Godot.Collections.Dictionary();
         }
@@ -131,9 +196,35 @@ public partial class LubanConfigService : Node
         return result;
     }
 
+    public Godot.Collections.Dictionary GetSingleton(string configName)
+    {
+        if (!TryGetSingletonObject(configName, out var singletonData, true))
+        {
+            return new Godot.Collections.Dictionary();
+        }
+
+        return ConvertObjectToDictionary(singletonData);
+    }
+
+    public Variant GetSingletonValue(string configName, string fieldName)
+    {
+        if (!TryGetSingletonObject(configName, out var singletonData, true))
+        {
+            return default;
+        }
+
+        if (!TryGetMemberValue(singletonData, fieldName, out var value))
+        {
+            GD.PushError($"Luban singleton config field not found. Table: {configName}. Field: {fieldName}");
+            return default;
+        }
+
+        return ConvertObjectToVariant(value);
+    }
+
     public Variant GetValue(string configName, Variant key, string fieldName)
     {
-        if (!TryGetRecordObject(configName, key, out var record))
+        if (!TryGetRecordObject(configName, key, out var record, true))
         {
             return default;
         }
@@ -158,7 +249,7 @@ public partial class LubanConfigService : Node
         return false;
     }
 
-    private bool TryGetTable(string configName, out IConfigSingleton table)
+    private bool TryGetTable(string configName, out IConfigSingleton table, bool shouldReportErrors = true)
     {
         table = null;
         if (!EnsureLoaded())
@@ -171,14 +262,18 @@ public partial class LubanConfigService : Node
             return true;
         }
 
-        GD.PushError($"Luban config table not found: {configName}");
+        if (shouldReportErrors)
+        {
+            GD.PushError($"Luban config table not found: {configName}");
+        }
+
         return false;
     }
 
-    private bool TryGetRecordObject(string configName, Variant key, out object record)
+    private bool TryGetRecordObject(string configName, Variant key, out object record, bool shouldReportErrors)
     {
         record = null;
-        if (!TryGetTable(configName, out var table))
+        if (!TryGetTable(configName, out var table, shouldReportErrors))
         {
             return false;
         }
@@ -186,7 +281,11 @@ public partial class LubanConfigService : Node
         var dataMap = GetPropertyValue(table, "DataMap") as IDictionary;
         if (dataMap == null)
         {
-            GD.PushError($"Luban config table has no DataMap: {configName}");
+            if (shouldReportErrors)
+            {
+                GD.PushError($"Luban config table has no DataMap: {configName}");
+            }
+
             return false;
         }
 
@@ -194,12 +293,43 @@ public partial class LubanConfigService : Node
         var convertedKey = ConvertVariantToKey(key, keyType);
         if (convertedKey == null || !dataMap.Contains(convertedKey))
         {
-            GD.PushError($"Luban config record not found. Table: {configName}. Key: {key}");
+            if (shouldReportErrors)
+            {
+                GD.PushError($"Luban config record not found. Table: {configName}. Key: {key}");
+            }
+
             return false;
         }
 
         record = dataMap[convertedKey];
         return record != null;
+    }
+
+    private bool TryGetSingletonObject(string configName, out object singletonData, bool shouldReportErrors)
+    {
+        singletonData = null;
+        if (!TryGetTable(configName, out var table, shouldReportErrors))
+        {
+            return false;
+        }
+
+        singletonData = GetPropertyValue(table, "Data");
+        if (singletonData != null)
+        {
+            return true;
+        }
+
+        if (shouldReportErrors)
+        {
+            GD.PushError($"Luban config table has no singleton Data property: {configName}");
+        }
+
+        return false;
+    }
+
+    private static bool HasProperty(object target, string propertyName)
+    {
+        return target.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public) != null;
     }
 
     private static Type GetDictionaryKeyType(Type dictionaryType)
