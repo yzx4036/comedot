@@ -34,3 +34,4 @@ addons/npc_library_tool
 # etc
 .DS_Store
 .idea
+_ConfigTables/gen_code.bat
