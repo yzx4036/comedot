@@ -102,8 +102,10 @@ func removeDock() -> void:
 #region Custom Menu Items
 
 const componentMenuItem := "New Component in Selected Folder..."
+const initializeGameMenuItem := "Initialize Game Structure..."
 # TBD: const newComponentInFolderShortcutPath := pluginPath + "/newComponentInFolderShortcut"
 var newComponentInFolderShortcut: Shortcut
+var gameProjectInitializer: GameProjectInitializer
 
 
 func addMenuItems() -> void:
@@ -117,16 +119,29 @@ func addMenuItems() -> void:
 		return
 	
 	self.add_tool_menu_item(componentMenuItem, componentsDock.createNewComponentInSelectedFolder)
+	self.add_tool_menu_item(initializeGameMenuItem, showGameProjectInitializer)
 	# TBD: ProjectSettings.set_setting(newComponentInFolderShortcutPath, newComponentInFolderShortcut)
 	printLog(str("Added menu item: Project → Tools → ", componentMenuItem, " Shortcut: ", newComponentInFolderShortcut.get_as_text()))
+	printLog(str("Added menu item: Project → Tools → ", initializeGameMenuItem))
 
 
 
 func removeMenuItems() -> void:
 	newComponentInFolderShortcut = null
+	if gameProjectInitializer:
+		gameProjectInitializer.dispose()
+		gameProjectInitializer = null
 	# TBD: ProjectSettings.clear(newComponentInFolderShortcutPath)
 	# TBD: ProjectSettings.save()
 	self.remove_tool_menu_item(componentMenuItem)
+	self.remove_tool_menu_item(initializeGameMenuItem)
+
+
+func showGameProjectInitializer() -> void:
+	if not gameProjectInitializer:
+		gameProjectInitializer = preload("res://addons/Comedot/GameProjectInitializer.gd").new(self)
+
+	gameProjectInitializer.showDialog()
 
 
 ## Handles keyboard shortcuts for custom menu items
