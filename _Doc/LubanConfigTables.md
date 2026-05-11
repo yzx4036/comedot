@@ -87,11 +87,14 @@ Current smoke tests:
 	- C# service load and visual table display.
 - `Game/Cd_ProjectZero/Tests/Manual/Runtime/LubanConfigBridgeTest.tscn`
 	- GDScript bridge reads a record and a list through `LubanConfigService`.
+- `Game/Cd_ProjectZero/Tests/Manual/Runtime/M21LubanIdentityEffectTest.tscn`
+	- GDScript bridge reads the M21 identity-effect pilot table through `TbCfg` / `TbField` / `Tb`, converts rows into runtime `IdentityEffectSet`, and verifies a gameplay price effect.
 
 Expected GDScript bridge output:
 
 ```text
-Luban bridge test | loaded true | tables 4 | item 瓶盖 | records 4 | validId true | invalidId false | modes map/list/one | singleton 3 | passed true
+Luban bridge test | loaded true | tables 5 | item 瓶盖 | records 4 | validId true | invalidId false | modes map/list/one | singleton 3 | passed true
+M21 Luban identity effect acceptance | loaded true | table true | mode map | rows 5 | validate true | runtime true | tresMirror true | failurePath true | constants true | passed true
 ```
 
 
