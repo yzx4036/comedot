@@ -32,17 +32,12 @@ func _ready() -> void:
 	selfAsArea.monitoring = false # This [Area2D] does not need to monitor any other areas; it only needs to be `monitorable`
 
 	self.add_to_group(Global.Groups.targetables)
-	parentEntity.add_to_group(Global.Groups.targetables)
-	connectSignals()
+	entity.add_to_group(Global.Groups.targetables)
 	updateMouseHover()
 
 
-func connectSignals() -> void:
-	self.willRemoveFromEntity.connect(self.onWillRemoveFromEntity)
-
-
-func onWillRemoveFromEntity() -> void:
-	parentEntity.remove_from_group(Global.Groups.targetables) # CHECK: Will this cause problems if there are somehow multiple ActionTargetableComponent subclasses on an Entity?
+func onWillUninstall() -> void:
+	entity.remove_from_group(Global.Groups.targetables) # CHECK: Will this cause problems if there are somehow multiple ActionTargetableComponent subclasses on an Entity?
 
 
 #region Action Targeting
@@ -98,6 +93,6 @@ func disconnectMouseSignals() -> void:
 
 
 func setHighlight(highlight: bool = true) -> void:
-	parentEntity.modulate = Color.GREEN if highlight else Color.WHITE
+	entity.modulate = Color.GREEN if highlight else Color.WHITE
 
 #endregion

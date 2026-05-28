@@ -13,6 +13,7 @@ extends GDScript
 enum CompassDirection {
 	# DESIGN: Start from East to match the default rotation angle of 0
 	# TBD: Should this be in `Tools.gd` or in `Global.gd`? :')
+	# TBD: PERFORMANCE: `int` or `float`?
 	none		=  -1,
 	east		=   0,
 	southEast	=  45,
@@ -21,8 +22,10 @@ enum CompassDirection {
 	west		= 180,
 	northWest	= 225,
 	north		= 270,
-	northEast	= 315
+	northEast	= 315,
 	}
+
+const degreesPerCompassDirection = 45 ## The "steps" between each [enum CompassDirection] element.
 
 const compassDirectionVectors: Dictionary[CompassDirection, Vector2i] = {
 	CompassDirection.none:		Vector2i.ZERO,
@@ -118,9 +121,10 @@ class Line: # UNUSED: Until Godot can support custom class @export :')
 #region Script Tools
 
 ## Connects or reconnects a [Signal] to a [Callable] only if the connection does not already exist, to silence any annoying Godot errors about existing connections (presumably for reference counting).
+## Returns [constant @GlobalScope.ERR_INVALID_PARAMETER] on failure.
 static func connectSignal(sourceSignal: Signal, targetCallable: Callable, flags: int = 0) -> int:
 	if not sourceSignal.is_connected(targetCallable):
-		return sourceSignal.connect(targetCallable, flags) # No idea what the return value is for
+		return sourceSignal.connect(targetCallable, flags)
 	else:
 		return 0
 
