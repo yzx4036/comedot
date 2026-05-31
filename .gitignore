@@ -20,7 +20,11 @@ mono_crash.*.json
 .editorconfig
 
 # AI
-.claude/
+.claude/sessions/
+.claude/cache/
+.claude/tasks/
+.claude/shell-snapshots/
+.claude/file-history/
 
 # Game-specific experiments
 Lab/*
