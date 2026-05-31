@@ -1,0 +1,54 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__godot-mcp__*",
+      "Bash(git -C *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git status *)",
+      "Bash(git branch *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git merge *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git push *)",
+      "Bash(git stash *)",
+      "Bash(git remote *)",
+      "Bash(git worktree *)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(head *)",
+      "Bash(cat *)",
+      "Bash(wc *)",
+      "Bash(echo *)",
+      "Bash(pwd*)",
+      "Bash(which *)",
+      "Bash(godot *)",
+      "Bash(dotnet *)",
+      "Glob",
+      "Grep",
+      "Read",
+      "Edit",
+      "Write"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)"
+    ]
+  },
+  "hooks": {
+    "PreCommit": [
+      {
+        "matcher": "*.gd",
+        "description": "GDScript syntax check before commit (if godot available)"
+      }
+    ]
+  },
+  "env": {
+    "GODOT_VERSION": "4.7"
+  }
+}
