@@ -8,50 +8,61 @@ extends TurnBasedComponent
 
 
 #region Parameters
-@export_range(0.0, 100.0, 10.0) var speed: float ## Placeholder
+@export_range(0.0, 100.0, 10.0) var speed: float ## PLACEHOLDER
 #endregion
 
 
 #region State
-var property: int ## Placeholder
+var property: int ## PLACEHOLDER
 #endregion
 
 
 #region Signals
-signal didSomethingHappen ## Placeholder
+signal didSomethingHappen ## PLACEHOLDER
 #endregion
 
 
 #region Dependencies
 
-var coComponent: Component = coComponents.Component ## Placeholder # WARNING: "Memoization" (caching the reference) may cause bugs if a new component of the same type is later added to the entity.
+# WARNING: "Memoization" (caching the reference) may cause bugs if a component is removed from the entity later.
+
+@onready var coComponent:	 Component		= coComponents.Component ## PLACEHOLDER
+@onready var inputComponent: InputComponent	= getCoComponent(InputComponent, true) # findSubclasses
 
 ## Returns a list of required component types that this component depends on.
 func getRequiredComponents() -> Array[Script]:
-	return []
+	return [InputComponent]
 
 #endregion
 
 
 func _ready() -> void:
-	pass # Placeholder: Add any code needed to configure and prepare the component.
+	# PLACEHOLDER: Remove signals if input is not needed.
+	Tools.connectSignal(inputComponent.didUpdateMovementDirection,	self.onInputComponent_didUpdateMovementDirection)
+	Tools.connectSignal(inputComponent.didUpdateInputActionsList,	self.onInputComponent_didUpdateInputActionsList)
+	# PLACEHOLDER: Add any code needed to configure and prepare the component.
 
 
-func _input(event: InputEvent) -> void:
-	if not isEnabled: return
-	pass # Placeholder: Handle one-shot input events such as jumping or firing.
+func onInputComponent_didUpdateMovementDirection(movementDirection: Vector2, difference: Vector2) -> void:
+	if not isEnabled or not TurnBasedCoordinator.isReadyToStartTurn: return
+	pass # PLACEHOLDER: Remove if input is not needed.
+
+
+func onInputComponent_didUpdateInputActionsList(event: InputEvent) -> void:
+	if not isEnabled or not TurnBasedCoordinator.isReadyToStartTurn: return
+	pass # PLACEHOLDER: Handle one-shot input events such as jumping or firing.
 
 
 func processTurnBegin() -> void:
-	# isEnabled is handled by parent class.
-	pass # Handle "pre-turn" activity that happens BEFORE the main activity, such as animations, healing-over-time effects or any other setup.
+	# isEnabled is checked by [TurnBasedComponent]
+	pass # PLACEHOLDER: Handle "pre-turn" activity that happens BEFORE the main activity, such as animations, healing-over-time effects or any other setup.
 
 
 func processTurnUpdate() -> void:
-	# isEnabled is handled by parent class.
-	pass # Handle The actual actions which occur every turn, such as movement or combat.
+	# isEnabled is checked by [TurnBasedComponent]
+	pass # PLACEHOLDER: Handle the actual actions which occur every turn, such as movement or combat.
 
 
 func processTurnEnd() -> void:
-	# isEnabled is handled by parent class.
-	pass # Handle any "post-turn" activity that happens AFTER the main activity, such as animations, damage-over-time effects, log messages, or cleanup.
+	# isEnabled is checked by [TurnBasedComponent]
+	pass # PLACEHOLDER: Handle any "post-turn" activity that happens AFTER the main activity, such as animations, damage-over-time effects, log messages, or cleanup.

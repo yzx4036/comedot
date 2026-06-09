@@ -35,13 +35,13 @@ extends Component
 ## [method Entity.toggleComponents] is called to flip the `isEnabled` flag on each component if available, and pause the disabled components if [member shouldTogglePause].
 ## TIP: Use this to transfer player control from the main character to a vehicle/mount.
 ## TIP: Do not disable [InputComponent] on the rider, as that is required for [GunComponent] etc. Instead, disable [PlatformerPhysicsComponent] & [JumpComponent] etc.
-@export var componentsToDisableOnRider: Array[Script] = [JumpComponent, ActionsComponent, ActionControlComponent, PlatformerPhysicsComponent]
+@export var componentsToDisableOnRider: Array[Script] = [JumpComponent, AbilityComponent, AbilityControlComponent, PlatformerPhysicsComponent]
 
 ## The component types to temporarily ENABLE on this "mount/vehicle" entity when mounted.
 ## When unmounting, the components are disabled on the mount.
 ## [method Entity.toggleComponents] is called to flip the `isEnabled` flag on each component if available, and pause the disabled components if [member shouldTogglePause].
 ## TIP: Use this to temporarily transfer player control from the main character to a vehicle/mount.
-@export var componentsToEnableOnMount:  Array[Script] = [JumpComponent, ActionsComponent, ActionControlComponent, InputComponent]
+@export var componentsToEnableOnMount:  Array[Script] = [JumpComponent, AbilityComponent, AbilityControlComponent, InputComponent]
 
 
 ## If `true` then [method Entity.toggleComponents] also pauses each component in [member componentsToDisableOnRider] & [member componentsToEnableOnMount] when it is disabled.
@@ -126,8 +126,8 @@ func syncSpriteFlip() -> bool:
 
 func _ready() -> void:
 	# Cache a reference to our sprite to synchronize the flip direction between mount and rider.
-	self.parentEntity.getSprite()
-	self.mountSprite = parentEntity.sprite
+	self.entity.getSprite()
+	self.mountSprite = entity.sprite
 
 	Tools.connectSignal(self.didMount,    self.onSelf_didMount)
 	Tools.connectSignal(self.didDismount, self.onSelf_didDismount)
@@ -164,7 +164,7 @@ func onSelf_didMount(newRider: Entity) -> void:
 		newRider.toggleComponents(componentsToDisableOnRider,   false, shouldTogglePause)
 	if not componentsToEnableOnMount.is_empty():
 		if debugMode: printDebug(str("componentsToEnableOnMount: ", componentsToEnableOnMount))
-		parentEntity.toggleComponents(componentsToEnableOnMount, true, shouldTogglePause)
+		entity.toggleComponents(componentsToEnableOnMount, true, shouldTogglePause)
 
 
 func onSelf_didDismount(previousRider: Entity) -> void:
@@ -182,7 +182,7 @@ func onSelf_didDismount(previousRider: Entity) -> void:
 		previousRider.toggleComponents(componentsToDisableOnRider, true, shouldTogglePause) # Re-enable
 	if not componentsToEnableOnMount.is_empty():
 		if debugMode: printDebug(str("Disabling componentsToEnableOnMount: ", componentsToEnableOnMount))
-		parentEntity.toggleComponents(componentsToEnableOnMount,  false, shouldTogglePause) # Disable
+		entity.toggleComponents(componentsToEnableOnMount,  false, shouldTogglePause) # Disable
 
 
 func onInputComponent_didChangeHorizontalDirection() -> void:
@@ -191,9 +191,8 @@ func onInputComponent_didChangeHorizontalDirection() -> void:
 		riderSprite.flip_h = mountSprite.flip_h
 
 
-func unregisterEntity() -> void:
+func onWillUninstall() -> void:
 	self.dismount()
-	super.unregisterEntity()
 
 
 func _exit_tree() -> void:

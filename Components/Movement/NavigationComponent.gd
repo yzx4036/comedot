@@ -71,7 +71,7 @@ func onDestinationUpdateTimer_timeout() -> void:
 
 func _physics_process(_delta: float) -> void:
 	if not isEnabled or not destinationNode: return
-	self.recentDirection = parentEntity.to_local(selfAsAgent.get_next_path_position()).normalized()
+	self.recentDirection = entity.to_local(selfAsAgent.get_next_path_position()).normalized()
 	moveTowardsDestination()
 	
 	if debugMode: showDebugInfo()
@@ -81,11 +81,11 @@ func _physics_process(_delta: float) -> void:
 ## The default implementation sets the [member Node2D.position] directly, foregoing physics.
 ## NOTE: Override this method in subclasses to implement different ways to move an entity, such as via [member CharacterBody2D.velocity] physics etc.
 func moveTowardsDestination() -> void:
-	if inputComponent:
-		inputComponent.setMovementDirection(self.recentDirection)
+	if  inputComponent:
+		inputComponent.setMovementInputs(self.recentDirection)
 	else:
-		parentEntity.position += self.recentDirection
-		parentEntity.reset_physics_interpolation() # CHECK: Necessary?
+		entity.position += self.recentDirection
+		entity.reset_physics_interpolation() # CHECK: Necessary?
 
 
 func showDebugInfo() -> void:

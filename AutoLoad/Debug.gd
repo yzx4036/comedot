@@ -173,7 +173,7 @@ func addCombinedWatchList(key: StringName, variables: Dictionary[String, Variant
 ## Adds a set of properties from a [Component] to the [member watchList] and formats them as a single watchlist entry along with the component & entity's name.
 ## Calls [method Debug.addCombinedWatchList]. See the documentation for that method for more details.
 func addComponentWatchList(component: Component, variables: Dictionary[String, Variant]) -> void:
-	Debug.addCombinedWatchList(str(component.parentEntity.name, ".", component.name), variables)
+	Debug.addCombinedWatchList(str(component.entity.name, ".", component.name), variables)
 
 #endregion
 
@@ -303,6 +303,12 @@ func printLog(message: String = "", object: Variant = null, messageColor: String
 func printAutoLoadLog(message: String = "") -> void:
 	var caller: String = get_stack()[1].source.get_file().get_basename()
 	print_rich(str("[color=", Global.Colors.logAutoload, "]", caller, "[/color]\t", message))
+
+
+## Prints a log message for [Resource]s such as [Ability] etc. in a distinct color.
+func printResourceLog(message: String = "", object: Variant = null) -> void:
+	updateLastFrameLogged()
+	print_rich(str("[color=", Global.Colors.logResource, "]", object, "[/color] ", message)) # [/color] not necessary
 
 
 ## Prints a faded message to reduce visual clutter.

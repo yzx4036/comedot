@@ -91,19 +91,16 @@ func _ready() -> void:
 
 #region Detachment & Reattachment
 
-func registerEntity(newParentEntity: Entity) -> void:
-	# NOTE: This method is overridden in order to reconnect signals in case the new parent is also an Entity.
-	super.registerEntity(newParentEntity)
-	if newParentEntity: connectSignals() # Make sure the new parent is an Entity
+func onDidInstall() -> void:
+	Tools.connectSignal(entity.preDelete, self.onEntity_preDelete)
 
 
-func connectSignals() -> void:
-	Tools.connectSignal(parentEntity.preDelete, self.onEntity_preDelete)
+func onWillUninstall() -> void:
+	Tools.disconnectSignal(entity.preDelete, self.onEntity_preDelete)
 
 
 func onEntity_preDelete() -> void:
-	if parentEntity:
-		Tools.disconnectSignal(parentEntity.preDelete, self.onEntity_preDelete) # Prevent multiple calls!
+	if entity: Tools.disconnectSignal(entity.preDelete, self.onEntity_preDelete) # Prevent multiple calls!
 	if shouldAttachToGrandparentOnEntityRemoval:
 		self.cancel_free() # We still want to live!
 		attachToGrandparent()
@@ -114,12 +111,12 @@ func onEntity_preDelete() -> void:
 ## NOTE: Does NOT check for [member shouldAttachToGrandparentOnParentRemoval] as it must done by other event-handling methods.
 func attachToGrandparent() -> void:
 	# TBD: Should we still detach from any parent, not just an Entity?
-	if not is_instance_valid(parentEntity): return
-	if debugMode: printDebug(str("attachToGrandparent(): Detaching from parent entity: ", parentEntity))
+	if not is_instance_valid(entity): return
+	if debugMode: printDebug(str("attachToGrandparent(): Detaching from parent entity: ", entity))
 
 	# See if the Entity has a parent
 	var newParent: Node
-	newParent = parentEntity.get_parent()
+	newParent = entity.get_parent()
 
 	# If not, just put this camera on the scene tree
 	if not is_instance_valid(newParent):

@@ -19,7 +19,14 @@ extends Component # + TurnBasedObjectBase
 
 
 #region Parameters
-@export var isEnabled: bool = true
+
+@export var isEnabled: bool = true:
+	set = setIsEnabled # Use a separate function for the property setter so that subclasses may override it.
+
+## Property setter for [member isEnabled] as a separate function to let subclasses override it.
+func setIsEnabled(newValue: bool) -> void:
+	isEnabled = newValue
+
 #endregion
 
 
@@ -31,7 +38,7 @@ var currentTurn: int:
 	set(newValue): printError("currentTurn should not be set; use TurnBasedCoordinator") # TEMP: To catch bugs
 
 ## Returns: [TurnBasedCoordinator.currentTurnState]
-var currentTurnState: TurnBasedCoordinator.TurnBasedState:
+var currentTurnState: TurnBasedCoordinator.TurnState:
 	get: return TurnBasedCoordinator.currentTurnState # TBD: Should it forward to TurnBasedEntity?
 	set(newValue): printError("currentTurnState should not be set; use TurnBasedCoordinator") # TEMP: To catch bugs
 
@@ -64,11 +71,9 @@ func _enter_tree() -> void:
 	if not self.is_in_group(Global.Groups.turnBased): self.add_to_group(Global.Groups.turnBased, true) # persistent
 
 
-func registerEntity(newParentEntity: Entity) -> void:
-	super.registerEntity(newParentEntity)
-	if newParentEntity == null: return
-	if not is_instance_of(parentEntity, TurnBasedEntity):
-		printWarning("Parent Entity is not a TurnBasedEntity! " + parentEntity.logFullName) # DESIGN: Crash if no parentEntity
+func onDidInstall() -> void:
+	if not is_instance_of(self.entity, TurnBasedEntity):
+		printWarning("Entity is not a TurnBasedEntity! " + entity.logFullName) # DESIGN: Crash if no `entity`
 
 #endregion
 

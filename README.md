@@ -1,6 +1,4 @@
-# Comedot: Entities, Components & Shit* for [Godot][godot]
-
-\* _ECS but without that "systems" crap._
+# Comedot: Components for [Godot][godot]
 
 ![Godot+Comedot Logo][logo]
 
@@ -25,11 +23,13 @@
 * Health/ammo/etc. collectibles don't get picked up if your stat is at max. If the stat drops while still standing on the item, _then_ it gets picked up!
 * Climbing: Grabbing a ladder/rope while holding the climb input in mid-jump. Walking towards the ladder if not fully aligned. Horizontal movement on fences etc.
 
-> [!TIP]
-> 🛠️ Even if you don't need the template or components, you can copy some of the logic code to use in your own scripts, or just yoink [*Tools.gd][tools]
-
 > [!WARNING]
 > _This is still mostly a private personal project; it's what I'm using to make [future GotYs][itch] while learning Godot as I go. The API eschews cringe conventions like ugly underscores and shit may break frequently:_ **No backwards compatibility is guaranteed!**
+
+> [!TIP]
+> 🤖 You can try AI agents to update your existing projects to the latest Comedot branch.
+>
+> 🛠️ If you don't need the entire template, you can just yoink specific code to use in your own scripts, like [*Tools.gd][tools]
 
 <br/>
 
@@ -54,7 +54,7 @@ https://github.com/user-attachments/assets/061cf16a-04e9-477d-8f59-e2fa0fa523b7
 ## How To Use
 
 > [!IMPORTANT]  
-> _Requires Godot 4.7_
+> _Requires **Godot 4.7** 〜embrace the future_ ✨
 
 🚀 **Quickstart:** To try right away, open `project.godot` and run `PlatformerSceneTemplate.tscn` in `/Templates/Scenes/`
 
@@ -63,7 +63,7 @@ https://github.com/user-attachments/assets/061cf16a-04e9-477d-8f59-e2fa0fa523b7
 2. Drag-&-drop nodes from the `/Entities/` and `/Components/` folders into your scene tree.
 	* `/Templates/` contains scenes and Entities with preset Components as a quick starting point for various gameplay.
 	* `/Scripts/` contains code for non-Entity nodes.
-	* `/UI/` contains customizable UI elements for health, ammo, actions, upgrades etc.
+	* `/UI/` contains customizable UI elements for health, ammo, abilities, upgrades etc.
 
 ![Custom Dock Plugin][comedock]
 

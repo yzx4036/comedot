@@ -43,7 +43,7 @@ var previousRotation: float
 var didRotateThisFrame: bool
 
 var haveTurningControlComponent: bool:
-	get: return parentEntity.components.has(&"TurningControlComponent") # TBD: PERFORMANCE: Use hardcoded name or not?
+	get: return entity.components.has(&"TurningControlComponent") # TBD: PERFORMANCE: Use hardcoded name or not?
 
 @onready var reenablingTimer: Timer = $ReenablingTimer
 
@@ -51,11 +51,12 @@ var haveTurningControlComponent: bool:
 
 
 func _ready() -> void:
-	if not nodeToRotate: nodeToRotate = self.parentEntity
+	if not nodeToRotate: nodeToRotate = self.entity
 	if not targetToFace: printDebug("No targetToFace") # Do not clutter the log with warnings, in case the target is set after _ready(), e.g. spawning monsters set to target the player.
 
 
 func _input(event: InputEvent) -> void:
+	# TBD: Use InputComponent?
 	# Suppress the turning control if we also have a TurningControlComponent and there was a `turn` event.
 	if shouldDisableOnTurningInput and haveTurningControlComponent:
 		if self.isEnabled \
