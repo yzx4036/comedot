@@ -81,8 +81,8 @@ func _physics_process(_delta: float) -> void:
 ## The default implementation sets the [member Node2D.position] directly, foregoing physics.
 ## NOTE: Override this method in subclasses to implement different ways to move an entity, such as via [member CharacterBody2D.velocity] physics etc.
 func moveTowardsDestination() -> void:
-	if inputComponent:
-		inputComponent.setMovementDirection(self.recentDirection)
+	if  inputComponent:
+		inputComponent.setMovementInputs(self.recentDirection)
 	else:
 		entity.position += self.recentDirection
 		entity.reset_physics_interpolation() # CHECK: Necessary?

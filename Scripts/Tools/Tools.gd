@@ -27,6 +27,7 @@ enum CompassDirection {
 
 const degreesPerCompassDirection = 45 ## The "steps" between each [enum CompassDirection] element.
 
+## TIP: For a simple Array of [Vector2]s see [const GlobalInput.directions] etc.
 const compassDirectionVectors: Dictionary[CompassDirection, Vector2i] = {
 	CompassDirection.none:		Vector2i.ZERO,
 	CompassDirection.east:		Vector2i.RIGHT,
@@ -230,7 +231,7 @@ static func resetBodyVelocityIfZeroMotion(body: CharacterBody2D) -> Vector2:
 static func addRandomDistance(position: Vector2,    \
 minimumDistance: Vector2, maximumDistance: Vector2, \
 xScale: float = 1.0, yScale: float = 1.0) -> Vector2:
-
+	# TBD: Use GameState.randomNumberGenerator?
 	var randomizedPosition: Vector2 = position
 	randomizedPosition.x += randf_range(minimumDistance.x, maximumDistance.x) * xScale
 	randomizedPosition.y += randf_range(minimumDistance.y, maximumDistance.y) * yScale
@@ -383,10 +384,10 @@ static func replaceStrings(sourceString: String, substitutions: Dictionary[Strin
 
 ## TIP: To "truncate" the number of decimal points, use Godot's [method @GlobalScope.snappedf] function.
 
-## "Rolls" a random integer number from 1…100 (inclusive) and returns `true` if the result is less than or equal to the specified [param chancePercent].
+## Uses [member GameState.randomNumberGenerator] to "roll" a random integer number from 1…100 (inclusive) and returns `true` if the result is less than or equal to the specified [param chancePercent].
 ## i.e. If the chance is 10% then a roll of 1…10 will succeed but 11…100 (90 possibilities) will fail.
 static func rollChance(chancePercent: int) -> bool:
-	return randi_range(1, 100) <= chancePercent
+	return GameState.randomNumberGenerator.randi_range(1, 100) <= chancePercent
 
 
 ## Wraps a [float] value around if it is below 0.0 or higher than 1.0
@@ -397,7 +398,7 @@ static func wrapUnitFloat(value: float) -> float:
 #endregion
 
 
-#region Array Functions
+#region Array & Dictionary Functions
 
 ## NOTE: Packed arrays such as [PackedStringArray] etc. are accepted even though [param array] is typed as [Array]
 static func validateArrayIndex(array: Array, index: int) -> bool:
@@ -412,7 +413,23 @@ static func wrapArrayIndex(array: Array, index: int, increment: int) -> int:
 	else: return 0
 
 
-## Returns a specific number of random unique array indices.
+## Uses [member GameState.randomNumberGenerator] to return a random index from any [Array]
+## Returns -1 if the [param array] is empty.
+## NOTE: This is different from Godot's [method Array.pick_random] because this method uses a game-specific random number stream and can be used with packed arrays such as [PackedVector2Array] etc.
+## TIP: This may also be used with [method Dictionary.keys] & [method Dictionary.values] etc.
+static func pickRandomIndex(array: Array) -> int:
+	return GameState.randomNumberGenerator.randi_range(0, array.size() - 1) if not array.is_empty() else -1
+
+
+## Uses [member GameState.randomNumberGenerator] to return a random item from any [Array]
+## Returns -1 if the [param array] is empty.
+## NOTE: This is different from Godot's [method Array.pick_random] because this method uses a game-specific random number stream and can be used with packed arrays such as [PackedVector2Array] etc.
+## TIP: This may also be used with [method Dictionary.keys] & [method Dictionary.values] etc.
+static func pickRandom(array: Array) -> Variant:
+	return array[GameState.randomNumberGenerator.randi_range(0, array.size() - 1)] if not array.is_empty() else -1
+
+
+## Uses [member GameState.randomNumberGenerator] to returns a specific number of random unique array indices.
 ## If [param numberOfIndices] is greater than [param arraySize], the returned count is clamped to [param arraySize]
 ## PERFORMANCE: Uses a "sparse partial Fisher-Yates shuffle" to only track selected/swapped slots instead of allocating an Array for every possible index.
 ## TIP: To shuffle an entire Array, use Godot's builtin [method Array.shuffle]
@@ -435,7 +452,7 @@ static func pickRandomArrayIndices(arraySize: int, numberOfIndices: int) -> Arra
 	for count in selectedIndexCount:
 		# 1: Roll one slot from the still available range.
 		# Example: [A,B,C,D]: select B
-		selectedSlot  = randi_range(0, remainingIndexCount - 1)
+		selectedSlot  = GameState.randomNumberGenerator.randi_range(0, remainingIndexCount - 1)
 
 		# 2: Resolve that slot to the actual index.
 		# Instead of using a list of every possible index, assume that every slot points to itself unless `swappedIndices` says otherwise:
@@ -459,6 +476,35 @@ static func pickRandomArrayIndices(arraySize: int, numberOfIndices: int) -> Arra
 		# 6: On the next pass, [A,D,C] → Select A, swap with C → [C,D | A,B] and so on...
 
 	return shuffledIndices
+
+
+## Calls [method RandomNumberGenerator.rand_weighted] to return a key from a [Dictionary] where each value is a "relative weight"
+## i.e. if there are 4 items each with a weight of 1.0, then each item has a chance of 25%
+## EXAMPLE: `{ "common": 3.0, "rare": 1.0 }` picks `"common"` about 75% of the time.
+## NOTE: Negative weights are clamped to 0 and weights <=0 are ignored.
+## Returns [param default] if there are no items or positive weights.
+## NOTE: Uses [member GameState.randomNumberGenerator] by default.
+## IMPORTANT: The [Dictionary] values should be `float` or `int`
+static func pickRandomFromWeightsDictionary(weightedItems: Dictionary, default: Variant = null, randomNumberGenerator: RandomNumberGenerator = GameState.randomNumberGenerator) -> Variant: 
+	# DUMBDOT: Cannot type `weightedItems` as `Dictionary[Variant, float]` because then Godot rejects other types such as `[StringName, float]`
+	
+	# Example ranges, excluding the lower bound:
+	# "common"	= (0.0, 3.0] = 3/4 = 75% 
+	# "rare"	= (3.0, 4.0] = 1/4 = 25%
+	# default	= 0
+
+	if weightedItems.is_empty(): return default
+
+	# Clamp negative weights to 0 because a negative weight doesn't make sense
+	# rand_weighted() ignores weights of 0
+	var weights: PackedFloat32Array	= PackedFloat32Array(weightedItems.values()) # rand_weighted() needs [PackedFloat32Array]
+	for index: int in weights.size():
+		if weights[index] < 0: weights[index] = 0
+
+	# rand_weighted() returns -1 for invalid arrays 
+	var randomIndex: int = randomNumberGenerator.rand_weighted(weights)
+	if  randomIndex >= 0 and randomIndex < weightedItems.size(): return weightedItems.keys()[randomIndex]
+	else: return default
 
 #endregion
 

@@ -153,8 +153,9 @@ func _ready() -> void:
 	self.lastVerticalInputDirection = int(signf(self.lastVerticalInput))
 	self.isLastVerticalInputZero = lastVerticalInputDirection == 0
 
-	self.updateSetAllProcess()
+	self.setProcessing()
 
+	Tools.connectSignal(inputComponent.didUpdateMovementDirection, self.onInputComponent_didUpdateMovementDirection)
 	Tools.connectSignal(inputComponent.didProcessInput, self.onInputComponent_didProcessInput)
 	Tools.connectSignal(characterBodyComponent.didMove, self.oncharacterBodyComponent_didMove) # For confinement # TODO: Toggle signal based on flags
 
@@ -170,10 +171,10 @@ func setIsEnabled(newValue: bool) -> void:
 		stopClimbing()
 		if isClimbing: self.isClimbing = false # Restore `platformerPhysicsComponent.isGravityEnabled`
 		self.isInClimbableArea = false
-	self.updateSetAllProcess()
+	self.setProcessing()
 
 
-func updateSetAllProcess() -> void:
+func setProcessing() -> void:
 	self.set_process_unhandled_input(isPlayerControlled and isEnabled)
 	self.set_physics_process(isInClimbableArea and isEnabled) # NOTE: Do NOT check `isLastVerticalInputZero` because `PlatformerPhysicsComponent.shouldSkipFriction` should be set every frame while climbing, even if there is no input.
 	self.set_process(debugMode)
@@ -222,7 +223,7 @@ func updateActiveClimbingAreaBounds() -> Rect2:
 
 #region Input & Interface
 
-func onInputComponent_didProcessInput(event: InputEvent) -> void:
+func onInputComponent_didUpdateMovementDirection(_movementDirection: Vector2, _difference: Vector2) -> void:
 	if not isEnabled: return
 
 	# DESIGN: TBD: PERFORMANCE: Some of these `if` and `else` chains may seem redundant & excessive,
@@ -235,7 +236,7 @@ func onInputComponent_didProcessInput(event: InputEvent) -> void:
 	lastVerticalInputDirection	= int(signf(lastVerticalInput))
 	isLastVerticalInputZero		= is_zero_approx(lastVerticalInput)
 
-	# Are we not climbing? Check for events that will start climbing.
+	# Are we not climbing? Check for inputs that can trigger climbing.
 	if not isClimbing:
 
 		# Are we in a climbable area?
@@ -247,32 +248,41 @@ func onInputComponent_didProcessInput(event: InputEvent) -> void:
 			if lastVerticalInputDirection < 0 or not characterBodyComponent.isOnFloor:
 				startClimbing()
 
-	# Are we already climbing? Check for events that will end the climb.
+	# Are we already climbing? Check for inputs that can end the climb.
 	elif isClimbing:
 
 		# First of all, is horizontal movement not allowed during climbing?
 		if not self.shouldAllowHorizontalInput and not is_zero_approx(inputComponent.horizontalInput) \
 		and not characterBodyComponent.isOnFloor: # Cancel only when not touching the ground! To allow walking while holding a fence or cliff etc. for example.
-			inputComponent.horizontalInput = 0
-
-		# NOTE: Check `event` instead of Input.is_action_just_pressed() etc to allow for AI/scripted control etc.
-		# TBD:  Also check Input.is_action_just_pressed()?
-
-		# Did we jump?
-		if event.is_action_pressed(GlobalInput.Actions.jump) and characterBodyComponent.isOnFloor:
-			stopClimbing()
-
-		# Did we cancel climbing?
-		# TBD: Cancel on "just pressed" or released?
-		elif not cancelClimbInputActionName.is_empty() and event.is_action_pressed(cancelClimbInputActionName): # Make sure the string isn't empty first or we may match against unintended inputs!
-			stopClimbing()
+			# TBD: PERFORMANCE: Call InputComponent.clearMovementInputs()?
+			inputComponent.horizontalInput		= 0
+			inputComponent.movementDirection.x	= 0
 
 		# If we try to go lower while already touching the ground, get off the ladder etc.
-		elif lastVerticalInputDirection > 0 and characterBodyComponent.isOnFloor:
+		if lastVerticalInputDirection > 0 and characterBodyComponent.isOnFloor:
 			stopClimbing()
+
+		# NOTE: Check for jump etc in onInputComponent_didProcessInput()
 
 	# TBD: set_input_as_handled() after each cancellation?
 	# NOTE: Per-frame movement occurs in _physics_process()
+
+
+func onInputComponent_didProcessInput(event: InputEvent) -> void:
+	# Check for non-movement inputs such as Jump that can cancel climbing
+	if not isEnabled or not isClimbing: return
+
+	# NOTE: Check `event` instead of Input.is_action_just_pressed() etc to allow for AI/scripted control etc.
+	# TBD:  Also check Input.is_action_just_pressed()?
+
+	# Did we jump while touching the floor?
+	if event.is_action_pressed(GlobalInput.Actions.jump) and characterBodyComponent.isOnFloor:
+		stopClimbing()
+	
+	# Did we press a specici cancellation action?
+	# TBD: Cancel on "just pressed" or released?
+	elif not cancelClimbInputActionName.is_empty() and event.is_action_pressed(cancelClimbInputActionName): # Make sure the string isn't empty first or we may match against unintended inputs!
+		stopClimbing()
 
 
 ## If not already climbing, uses [method climbNearestArea] to start climbing and returns the [member activeClimbingArea].
@@ -300,12 +310,13 @@ func climbNearestArea() -> Area2D:
 		characterBodyComponent.body.velocity.y = 0 # NOTE: Stop any other vertical movement. FIXES: Gradual buildup of gravity from "bouncing" outside a Climbable etc.
 		if shouldSnapToClimbableArea: snapToActiveClimbingArea()
 
-		# Stop walking or flying off the ladder if trying to climb in mid-air/jump!
+		# Stop walking or flying off the ladder if trying to climb in mid-air/during a jump!
 		# TBD: Is this necessary or the expected behavior?
-		inputComponent.horizontalInput = 0
-		characterBodyComponent.body.velocity.x = 0
-
-		isClimbing = true
+		self.isClimbing							= true
+		# TBD: PERFORMANCE: Call InputComponent.clearMovementInputs()?
+		inputComponent.horizontalInput			= 0
+		inputComponent.movementDirection.x		= 0
+		characterBodyComponent.body.velocity.x	= 0
 		didStartClimb.emit(activeClimbingArea)
 
 	return activeClimbingArea
@@ -344,15 +355,20 @@ func getOffsetOutsideClimbable(targetRect: Rect2) -> Vector2:
 func walkIntoArea(targetArea: Area2D) -> Vector2:
 	# DESIGN: Cannot use PlatformerPhysicsComponent.walkIntoRect() because ClimbComponent uses its own Area2D, not the CharacterBody2D's CollisionShape2D.
 
-	var displacement: Vector2 = getOffsetOutsideClimbable(CollisionTools.getAllShapeGlobalBounds(targetArea))
+	var displacement:  Vector2 = getOffsetOutsideClimbable(CollisionTools.getAllShapeGlobalBounds(targetArea))
+	var horizontalInput: float
 
 	# Walk into the interior
+
 	if not displacement.is_zero_approx():
 		# NOTE: Use the INVERSE of the displacement, because -1.0 means we're sticking out to the LEFT, so we need to move to the RIGHT
 		if absf(displacement.x) > 1 or is_equal_approx(absf(displacement.x), 1): # Check the absolute value because <0 means a leftwards offset
-			inputComponent.horizontalInput = signf(-displacement.x) # Set the input fully to the left or right (-1/+1)
+			horizontalInput = signf(-displacement.x) # Set the input fully to the left or right (-1/+1)
 		else:
-			inputComponent.horizontalInput = -displacement.x # If the displacement is too minor, don't use the maximum -1/+1 input range
+			horizontalInput = -displacement.x # If the displacement is too minor, don't use the maximum -1/+1 input range
+
+	if not is_equal_approx(horizontalInput, inputComponent.horizontalInput): # PERFORMANCE: Avoid calls if no changes
+		inputComponent.setMovementInputs(Vector2(horizontalInput, inputComponent.verticalInput)) # Also updates related properties # TBD: Ignore scale or allow inverted movement etc.?
 
 	# TBD: Neutralize inertia so we don't slide too deep into the Climbable?
 
