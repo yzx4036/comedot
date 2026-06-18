@@ -1,4 +1,16 @@
-# Copilot Instructions for Comedot
+<!--
+⚠️ DEPRECATED — 2026-05
+本文件已弃用。当前唯一 AI 工具为 Claude Code。
+权威配置在：
+- .claude/CLAUDE.md（框架）
+- Game/.claude/CLAUDE.md（游戏）
+- .claude/settings.json（权限/hooks）
+本文件保留仅供历史参考，不再维护。所有规则以 CLAUDE.md + Conventions.md 为准。
+-->
+
+# Copilot Instructions for Comedot (DEPRECATED)
+
+## ⚠️ 此文件已弃用 — 请参阅 .claude/CLAUDE.md
 
 ## What This Repository Is
 - Comedot is a reusable Godot 2D gameplay framework centered on composition (Entities + Components), not inheritance-heavy monolithic scripts.

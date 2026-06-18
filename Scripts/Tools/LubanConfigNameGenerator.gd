@@ -9,8 +9,10 @@ const defaultClassName: String = "TbCfg"
 const defaultAutoGenDirectory: String = "res://Game/Cd_ProjectZero/Scripts/Mono/Luban/Configs/AutoGen"
 const defaultFieldOutputScriptPath: String = "res://Game/Cd_ProjectZero/Scripts/Gameplay/Config/TbField.gd"
 const defaultFieldClassName: String = "TbField"
+const defaultLoaderOutputDirectory: String = "res://Game/Cd_ProjectZero/Scripts/Gameplay/Config/Loaders"
 const configFileExtension: String = "bytes"
 const csharpFileExtension: String = "cs"
+const loaderFileExtension: String = "gd"
 
 
 static func generate(
@@ -19,7 +21,8 @@ static func generate(
 	className: String = defaultClassName,
 	autoGenDirectory: String = defaultAutoGenDirectory,
 	fieldOutputScriptPath: String = defaultFieldOutputScriptPath,
-	fieldClassName: String = defaultFieldClassName
+	fieldClassName: String = defaultFieldClassName,
+	loaderOutputDirectory: String = defaultLoaderOutputDirectory
 ) -> bool:
 	var configNames: PackedStringArray = getConfigNames(configDirectory)
 	if configNames.is_empty():
@@ -38,6 +41,8 @@ static func generate(
 		return false
 
 	print("Generated Luban config names: %s (%s configs)" % [outputScriptPath, configNames.size()])
+
+	generateLoaderSkeletons(configNames, loaderOutputDirectory)
 	return true
 
 
@@ -119,15 +124,15 @@ static func generateFieldNames(configNames: PackedStringArray, autoGenDirectory:
 
 		var rowFilePath: String = String(fileByBaseName[rowFileKey])
 		var rowScriptText: String = readTextFile(rowFilePath)
-		var fieldNames: PackedStringArray = getRowFieldNames(rowScriptText)
-		if fieldNames.is_empty():
+		var fieldInfos: Array = getRowFieldInfos(rowScriptText)
+		if fieldInfos.is_empty():
 			push_warning("Cannot find Luban row fields for class: %s" % rowClassName)
 			continue
 
 		tableFieldInfos.append({
 			"configName": configName,
 			"className": createFieldInnerClassName(configName),
-			"fieldNames": fieldNames,
+			"fieldInfos": fieldInfos,
 		})
 
 	if tableFieldInfos.is_empty():
@@ -159,15 +164,20 @@ static func createFieldScriptText(tableFieldInfos: Array[Dictionary], autoGenDir
 	for tableInfo: Dictionary in tableFieldInfos:
 		var configName: String = String(tableInfo["configName"])
 		var className: String = String(tableInfo["className"])
-		var fieldNames: PackedStringArray = tableInfo["fieldNames"]
+		var fieldInfos: Array = tableInfo["fieldInfos"]
 		var usedConstantNames: Dictionary = {}
 		var allFieldLines: Array[String] = []
+
+		## fieldName -> constantName mapping for Row class generation
+		var nameToConstant: Dictionary = {}
 
 		lines.append("class %s:" % className)
 		lines.append("\tconst table: StringName = &\"%s\"" % configName)
 
-		for fieldName: String in fieldNames:
+		for info: Dictionary in fieldInfos:
+			var fieldName: String = String(info["name"])
 			var constantName: String = createUniqueName(sanitizeConstantName(fieldName), usedConstantNames)
+			nameToConstant[fieldName] = constantName
 			lines.append("\tconst %s: StringName = &\"%s\"" % [constantName, fieldName])
 			allFieldLines.append("\t\t%s," % constantName)
 
@@ -179,9 +189,220 @@ static func createFieldScriptText(tableFieldInfos: Array[Dictionary], autoGenDir
 		lines.append("")
 		lines.append("\tstatic func hasFieldName(fieldName: StringName) -> bool:")
 		lines.append("\t\treturn fieldName in allFieldNames")
+
+		## Generate typed Row inner class
+		lines.append("")
+		lines.append("")
+		appendRowClass(lines, fieldInfos, nameToConstant, "\t")
+
 		lines.append("")
 
 	return "\n".join(lines)
+
+
+#region Type Mapping (C# → GDScript)
+
+## Returns the GDScript type hint string for a C# field type.
+static func getGdTypeForCsType(csType: String) -> String:
+	var normalized: String = csType.strip_edges()
+	if isStringType(normalized):
+		return "String"
+	if isIntType(normalized):
+		return "int"
+	if isFloatType(normalized):
+		return "float"
+	if isBoolType(normalized):
+		return "bool"
+	if isArrayType(normalized):
+		return "Array"
+	return "Variant"
+
+
+## Returns the GDScript default value literal for a C# field type.
+static func getDefaultValueForCsType(csType: String) -> String:
+	var normalized: String = csType.strip_edges()
+	if isStringType(normalized):
+		return "\"\""
+	if isIntType(normalized):
+		return "0"
+	if isFloatType(normalized):
+		return "0.0"
+	if isBoolType(normalized):
+		return "false"
+	if isArrayType(normalized):
+		return "[]"
+	return "null"
+
+
+## Returns the GDScript conversion expression for a C# field type.
+## The expression operates on a local variable named `v` (Variant).
+static func getConversionForCsType(csType: String) -> String:
+	var normalized: String = csType.strip_edges()
+	if isStringType(normalized):
+		return "str(v)"
+	if isIntType(normalized):
+		return "int(v)"
+	if isFloatType(normalized):
+		return "float(v)"
+	if isBoolType(normalized):
+		return "bool(v)"
+	if isArrayType(normalized):
+		return "Array(v) if v is Array else ([] if v == null else [v])"
+	return "v"
+
+
+static func isStringType(normalized: String) -> bool:
+	return normalized == "string"
+
+
+static func isIntType(normalized: String) -> bool:
+	return normalized in ["int", "long", "short", "byte", "uint", "ulong", "ushort"]
+
+
+static func isFloatType(normalized: String) -> bool:
+	return normalized in ["float", "double", "decimal"]
+
+
+static func isBoolType(normalized: String) -> bool:
+	return normalized == "bool"
+
+
+static func isArrayType(normalized: String) -> bool:
+	return normalized.ends_with("[]") or normalized.begins_with("list<") or normalized.begins_with("list")
+
+#endregion
+
+
+## Appends a typed Row inner class for one table's field constants.
+static func appendRowClass(lines: Array[String], fieldInfos: Array, nameToConstant: Dictionary, indent: String) -> void:
+	var i: String = indent
+	var i2: String = indent + "\t"
+	var i3: String = indent + "\t\t"
+
+	lines.append("%sclass Row:" % i)
+	lines.append("%svar data: Dictionary" % i2)
+	lines.append("")
+	lines.append("")
+	lines.append("%sfunc _init(rowData: Dictionary = {}) -> void:" % i2)
+	lines.append("%sdata = rowData" % i3)
+
+	## DEFAULT_ROW constant with typed defaults per field
+	lines.append("")
+	lines.append("")
+	lines.append("%sconst DEFAULT_ROW: Dictionary = {" % i2)
+	for info: Dictionary in fieldInfos:
+		var fieldName: String = String(info["name"])
+		var csType: String = String(info["csType"])
+		var defaultValue: String = getDefaultValueForCsType(csType)
+		lines.append("%s&\"%s\": %s," % [i3, fieldName, defaultValue])
+	lines.append("%s}" % i2)
+
+	## Typed getter for each field — uses string literal keys
+	## because GDScript inner classes cannot access outer class constants
+	for info: Dictionary in fieldInfos:
+		var fieldName: String = String(info["name"])
+		var csType: String = String(info["csType"])
+		var gdType: String = getGdTypeForCsType(csType)
+		var conversion: String = getConversionForCsType(csType)
+		var methodName: String = "get%s" % fieldName.substr(0, 1).to_upper() + fieldName.substr(1)
+
+		lines.append("")
+		lines.append("")
+		lines.append("%sfunc %s() -> %s:" % [i2, methodName, gdType])
+		lines.append("%svar v: Variant = data.get(&\"%s\", DEFAULT_ROW[&\"%s\"])" % [i3, fieldName, fieldName])
+		lines.append("%sreturn %s" % [i3, conversion])
+
+
+#region Loader Skeleton Generation
+
+## Generates a Loader skeleton .gd file for each config table.
+## Skips tables that already have a Loader file (never overwrites).
+static func generateLoaderSkeletons(configNames: PackedStringArray, outputDirectory: String) -> void:
+	if not ensureOutputDirectory(outputDirectory + "/dummy"):
+		return
+
+	var existingFiles: PackedStringArray = findFilesRecursive(outputDirectory, loaderFileExtension)
+	var existingBaseNames: Dictionary = {}
+	for filePath: String in existingFiles:
+		existingBaseNames[filePath.get_file().get_basename().to_lower()] = true
+
+	var generatedCount: int = 0
+	for configName: String in configNames:
+		var loaderClassName: String = createLoaderClassName(configName)
+		var fieldClassName: String = createFieldInnerClassName(configName)
+		var fileName: String = "%s.gd" % loaderClassName
+
+		if existingBaseNames.has(fileName.get_basename().to_lower()):
+			continue
+
+		var scriptText: String = createLoaderSkeletonText(loaderClassName, fieldClassName, configName)
+		var filePath: String = outputDirectory.path_join(fileName)
+		if writeTextFile(filePath, scriptText, "Luban loader skeleton"):
+			generatedCount += 1
+
+	if generatedCount > 0:
+		print("Generated %s Luban loader skeleton(s) in: %s" % [generatedCount, outputDirectory])
+
+
+## Creates a PascalCase loader class name from a config name.
+## E.g. "identity_tbidentityeffectpilot" → "LubanIdentityEffectPilotLoader"
+static func createLoaderClassName(configName: String) -> String:
+	var parts: PackedStringArray = configName.split("_", false)
+	if parts.is_empty():
+		return "LubanLoader"
+	var tableName: String = parts[parts.size() - 1]
+	## Strip "tb" prefix if present
+	if tableName.begins_with("tb") and tableName.length() > 2:
+		tableName = tableName.substr(2)
+	## Convert to PascalCase: split by uppercase runs
+	var pascal: String = ""
+	var capitalizeNext: bool = true
+	for index: int in range(tableName.length()):
+		var ch: String = tableName.substr(index, 1)
+		if ch == "_":
+			capitalizeNext = true
+		elif capitalizeNext:
+			pascal += ch.to_upper()
+			capitalizeNext = false
+		else:
+			pascal += ch
+	return "Luban%sLoader" % pascal
+
+
+## Creates the skeleton GDScript text for a Loader.
+static func createLoaderSkeletonText(loaderClassName: String, fieldClassName: String, configName: String) -> String:
+	var lines: Array[String] = [
+		"## Auto-generated skeleton for %s." % configName,
+		"## Edit convertRow() to map each row to your runtime type.",
+		"## This file will NOT be overwritten by the generator once created.",
+		"",
+		"class_name %s" % loaderClassName,
+		"extends RefCounted",
+		"",
+		"",
+		"static func loadAll(tb: Tb) -> Array:",
+		"\treturn LubanLoader.loadAll(tb, TbCfg.%s, convertRow)" % sanitizeConstantName(createFriendlyConfigName(configName)),
+		"",
+		"",
+		"static func loadById(tb: Tb, key: Variant) -> Variant:",
+		"\treturn LubanLoader.loadFirst(tb, TbCfg.%s, key, convertRow)" % sanitizeConstantName(createFriendlyConfigName(configName)),
+		"",
+		"",
+		"## Override this function to convert each row into your runtime object.",
+		"## Use %s.Row for typed field access." % fieldClassName,
+		"static func convertRow(row: Dictionary) -> Variant:",
+		"\tvar r: %s.Row = %s.Row.new(row)" % [fieldClassName, fieldClassName],
+		"\t## TODO: Create your runtime object and populate it from r.",
+		"\t## Example:",
+		"\t## var obj: MyObject = MyObject.new()",
+		"\t## obj.someField = r.getSomeField()",
+		"\t## return obj",
+		"\treturn r.data",
+		"",
+	]
+	return "\n".join(lines)
+
+#endregion
 
 
 static func createUniqueConstantName(configName: String, usedConstantNames: Dictionary) -> String:
@@ -231,18 +452,43 @@ static func getRowClassName(tableScriptText: String) -> String:
 	return ""
 
 
-static func getRowFieldNames(rowScriptText: String) -> PackedStringArray:
-	var fieldNames: PackedStringArray = []
+## Parses C# row class source and extracts field info (name + type).
+## Returns Array of Dictionaries with keys: "name" (String), "csType" (String).
+static func getRowFieldInfos(rowScriptText: String) -> Array:
+	var fieldInfos: Array = []
 	var regex: RegEx = RegEx.new()
-	var error: Error = regex.compile("public\\s+readonly\\s+[A-Za-z0-9_<>,\\.\\?\\[\\]\\s]+\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*;")
+	var error: Error = regex.compile("public\\s+readonly\\s+([A-Za-z0-9_<>,\\.\\?\\[\\]\\s]+?)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*;")
 	if error != OK:
 		push_error("Cannot compile Luban row field regex.")
-		return fieldNames
+		return fieldInfos
 
 	for regexMatch: RegExMatch in regex.search_all(rowScriptText):
-		fieldNames.append(regexMatch.get_string(1))
+		var typeAndName: String = regexMatch.get_string(1).strip_edges()
+		var fieldName: String = regexMatch.get_string(2)
+		var csType: String = splitTypeFromDeclaration(typeAndName)
+		fieldInfos.append({"name": fieldName, "csType": csType})
 
-	return fieldNames
+	return fieldInfos
+
+
+## Extracts the C# type from a type declaration string.
+## E.g. "System.Collections.Generic.List<string> _v" → "List<string>"
+## E.g. "string" → "string"
+static func splitTypeFromDeclaration(typeAndName: String) -> String:
+	var trimmed: String = typeAndName.strip_edges()
+	## Find the last space that separates the type from a name
+	var lastSpace: int = trimmed.rfind(" ")
+	if lastSpace <= 0:
+		return trimmed
+	var typePart: String = trimmed.substr(0, lastSpace).strip_edges()
+	## Simplify: take only the last part of namespace-qualified types
+	var lastDot: int = typePart.rfind(".")
+	if lastDot >= 0:
+		typePart = typePart.substr(lastDot + 1)
+	## Strip nullable suffix
+	if typePart.ends_with("?"):
+		typePart = typePart.substr(0, typePart.length() - 1)
+	return typePart.to_lower()
 
 
 static func searchRegex(text: String, pattern: String) -> RegExMatch:
