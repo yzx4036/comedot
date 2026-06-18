@@ -43,8 +43,7 @@ GameState="*res://AutoLoad/GameState.gd"
 GlobalUI="*res://AutoLoad/GlobalUI.tscn"
 GlobalSonic="*res://AutoLoad/GlobalSonic.tscn"
 TurnBasedCoordinator="*res://AutoLoad/TurnBasedCoordinator.tscn"
-Debug="*res://AutoLoad/Debug.tscn"
-MCPInputHandler="*res://addons/godot_mcp/mcp_input_handler.gd"
+MCPRuntimeProbe="*res://addons/godot_mcp/runtime/mcp_runtime_probe.gd"
 
 [debug]
 
@@ -77,7 +76,7 @@ naming/script_name_casing=1
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/Comedot/plugin.cfg", "res://addons/godot_mcp/plugin.cfg", "res://addons/npc_library_tool/plugin.cfg")
+enabled=PackedStringArray("res://addons/Comedot/plugin.cfg", "res://addons/godot_mcp/plugin.cfg")
 
 [file_customization]
 
