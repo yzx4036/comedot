@@ -19,12 +19,20 @@ mono_crash.*.json
 # AI
 .codex/
 .claude/
+.claude/sessions/
+.claude/cache/
+.claude/tasks/
+.claude/shell-snapshots/
+.claude/file-history/
 
 # Game-specific experiments
 /Lab/*
 /Game/*
 override.cfg
 
+# etc.
+.DS_Store
+/Temporary/
 #特殊addon
 AI资源库
 addons/npc_library_tool
@@ -33,4 +41,3 @@ addons/npc_library_tool
 .DS_Store
 .idea
 _ConfigTables/gen_code.bat
-/Temporary/
