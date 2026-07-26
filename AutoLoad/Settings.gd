@@ -13,14 +13,16 @@ extends Node
 
 #region Comedot Project Settings
 
+var comedotProjectSettings:		ComedotProjectSettings = ComedotProjectSettings.loaded
+
 ## The path of the main scene of your game to launch when the player chooses "Start" on the Main Menu.
 ## If not specified, then the `application/run/main_scene` Godot Project Setting is used.
 ## This is not a [PackedScene] Resource to avoid circular references or load()ing before it is needed.
-static var mainGameScenePath:	String = ProjectSettings.get_setting("application/run/main_scene")
+static var mainGameScenePath:	String		= ProjectSettings.get_setting("application/run/main_scene")
 
-static var shouldAlertOnError:	bool = OS.is_debug_build() # TODO: Add toggle in Start.gd
+static var shouldAlertOnError:	bool		= OS.is_debug_build() # TBD: Add toggle in ComedotProjectSettings?
 
-static var saveFilePath:		StringName = "user://" + ProjectSettings.get_setting("application/config/name", "Comedot") + "SavedState.scn" # Include game/project name in save filename
+static var saveFilePath:		StringName	= "user://" + ProjectSettings.get_setting("application/config/name", "Comedot") + "SavedState.scn" # Include game/project name in save filename
 
 #endregion
 
@@ -126,7 +128,7 @@ class Setting:
 func _notification(what: int) -> void: # This happens earlier than _enter_tree()
 	# TBD: Start earlier on NOTIFICATION_PARENTED or a little later on _enter_tree()?
 	if what != NOTIFICATION_PARENTED: return
-	Debug.printAutoLoadLog("NOTIFICATION_PARENTED: Loading user preferences from configuration file…")
+	Debug.printAutoLoadLog("NOTIFICATION_PARENTED: Loading player preferences from configuration file…")
 	loadConfig()
 	loadProjectUserSettings()
 
@@ -141,13 +143,15 @@ static func loadConfig() -> bool:
 	if error == Error.OK:
 		return true
 	else:
-		Debug.printLog(str("Error ", error, " — Cannot load settings file, creating new: ", configFilePath), "Settings.gd") # Should be a log not an error, in case it's the 1st launch or the file has been removed on purpose.
+		Debug.printLog(str("Error ", error, ": Cannot load settings file, creating new: ", configFilePath), "Settings.gd") # Should be a log not an error, in case it's the 1st launch or the file has been removed on purpose.
 		return false
 
 
 ## Loads user settings which are counterpart to the Godot [ProjectSettings] such as window size.
 func loadProjectUserSettings() -> void:
-	pass # Done by GlobalUI.gd: # GlobalUI.setWindowSize(self.windowWidth, self.windowHeight, false) # !showLabel
+	if not comedotProjectSettings.mainGameScenePath.is_empty():
+		self.mainGameScenePath = comedotProjectSettings.mainGameScenePath
+	# Done by GlobalUI.gd: # GlobalUI.setWindowSize(self.windowWidth, self.windowHeight, false) # !showLabel
 
 #endregion
 
@@ -172,7 +176,7 @@ func _get_property_list() -> Array[Dictionary]:
 ## Handles dynamic properties.
 func _get(propertyName: StringName) -> Variant:
 	if debugMode and not settingsDictionary.has(propertyName):
-		printLog(str("_get() No Setting defined with propertyName: ", propertyName, " — Attempting to read from file"))
+		printLog(str("_get(): No Setting defined with propertyName: ", propertyName, " ・ Attempting to read from file"))
 
 	# NOTE: Try reading the setting from file even if it has not been defined as a property.
 	return self.getSetting(propertyName)
@@ -187,14 +191,14 @@ func getSetting(propertyName: StringName, defaultIfUndefined: Variant = null) ->
 	if setting:
 		return getSettingFromFile(setting.section, setting.name, setting.default)
 	else:
-		printWarning(str("getSetting() No Setting defined with propertyName: ", propertyName, " — Attempting to read from file anyway with defaultIfUndefined: ", defaultIfUndefined))
+		printWarning(str("getSetting(): No Setting defined with propertyName: ", propertyName, " ・ Attempting to read from file anyway with defaultIfUndefined: ", defaultIfUndefined))
 		return getSettingFromFile(SectionNames.default, propertyName, defaultIfUndefined)
 
 
 ## Handles dynamic properties.
 func _set(propertyName: StringName, value: Variant) -> bool:
 	if debugMode and not settingsDictionary.has(propertyName):
-		printLog(str("_set() No Setting defined with propertyName: ", propertyName, " — Saving to file anyway: ", value))
+		printLog(str("_set(): No Setting defined with propertyName: ", propertyName, " ・ Saving to file anyway: ", value))
 
 	# NOTE: Save the setting to file even if it has not been defined as a property.
 	self.saveSetting(propertyName, value)
@@ -213,10 +217,10 @@ func saveSetting(propertyName: StringName, newValue: Variant) -> void:
 			saveSettingToFile(setting.section, setting.name, newValue)
 			self.didChange.emit(setting.name, newValue)
 		else:
-			printLog(str("saveSetting() value already in file, not saving: ", setting.name, " == ", newValue))
+			printLog(str("saveSetting(): Value already in file, not saving: ", setting.name, " == ", newValue))
 
 	else:
-		printWarning(str("saveSetting() No Setting defined with propertyName: ", propertyName, " — Saving to file anyway: ", newValue))
+		printWarning(str("saveSetting(): No Setting defined with propertyName: ", propertyName, " ・ Saving to file anyway: ", newValue))
 		saveSettingToFile(SectionNames.default, propertyName, newValue)
 
 #endregion
@@ -250,7 +254,7 @@ func validateType(settingName: StringName, value: Variant) -> bool:
 
 	if not setting:
 		# NOTE: Allow undefined Settings to be implicitly loaded from file without overriding with `defaultIfUndefined`
-		printWarning(str("validateType() No Setting defined with name: " + settingName + " — Allowing all types"))
+		printWarning(str("validateType(): No Setting defined with name: " + settingName + " ・ Allowing all types"))
 		return true
 
 	var allowedType: Variant.Type = setting.type

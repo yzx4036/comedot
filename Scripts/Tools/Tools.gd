@@ -52,6 +52,21 @@ const compassDirectionOpposites: Dictionary[CompassDirection, CompassDirection] 
 	CompassDirection.northEast:	CompassDirection.southWest,
 	}
 
+
+## Uppercase initial letters of the directions such as "N", "E" etc.
+## TIP: For the full names, use [member CompassDirection.keys]
+const compassDirectionLetters: Dictionary[CompassDirection, StringName] = {
+	CompassDirection.none:		&"",
+	CompassDirection.east:		&"E",
+	CompassDirection.southEast:	&"SE",
+	CompassDirection.south:		&"S",
+	CompassDirection.southWest:	&"SW",
+	CompassDirection.west:		&"W",
+	CompassDirection.northWest:	&"NW",
+	CompassDirection.north:		&"N",
+	CompassDirection.northEast:	&"NE",
+	}
+
 ## A list of unit vectors representing 8 compass directions.
 class CompassVectors:
 	# TBD: PERFORMANCE: Replace with `compassDirectionVectors[CompassDirection]` or are these simple `const`ants faster?
@@ -208,6 +223,12 @@ static func splitPathIntoNodeAndProperty(path: NodePath) -> Array[NodePath]:
 ## Returns a COPY of a [Vector2i] moved in the specified [enum CompassDirection]
 static func offsetVectorByCompassDirection(vector: Vector2i, direction: CompassDirection) -> Vector2i:
 	return vector + Tools.compassDirectionVectors[direction]
+
+
+## Returns the nearest [enum Tools.CompassDirection] corresponding to a [Vector2]
+static func getCompassDirectionFromVector(vector: Vector2) -> Tools.CompassDirection:
+	if vector.is_zero_approx(): return Tools.CompassDirection.none
+	else: return wrapi(int(round(rad_to_deg(vector.angle()) / degreesPerCompassDirection)) * degreesPerCompassDirection, 0, 360) as Tools.CompassDirection
 
 #endregion
 
@@ -429,7 +450,7 @@ static func pickRandom(array: Array) -> Variant:
 	return array[GameState.randomNumberGenerator.randi_range(0, array.size() - 1)] if not array.is_empty() else -1
 
 
-## Uses [member GameState.randomNumberGenerator] to returns a specific number of random unique array indices.
+## Uses [member GameState.randomNumberGenerator] to return a specific number of random unique array indices.
 ## If [param numberOfIndices] is greater than [param arraySize], the returned count is clamped to [param arraySize]
 ## PERFORMANCE: Uses a "sparse partial Fisher-Yates shuffle" to only track selected/swapped slots instead of allocating an Array for every possible index.
 ## TIP: To shuffle an entire Array, use Godot's builtin [method Array.shuffle]
@@ -466,7 +487,7 @@ static func pickRandomArrayIndices(arraySize: int, numberOfIndices: int) -> Arra
 		remainingIndexCount -= 1
 		swappedIndices[selectedSlot] = swappedIndices.get(remainingIndexCount, remainingIndexCount)
 
-		# 4: The old last slot is now outside the available range, so it can be forgotten.
+		# 4: The old last slot is now outside the available range, so its mapping can be erased.
 		# Example: [A,D,C]
 		swappedIndices.erase(remainingIndexCount)
 
@@ -576,7 +597,7 @@ static func resetResource(resource: Resource) -> bool:
 	# TBD: CHECK: Is there a better way?
 
 	if not resource or resource.resource_path.is_empty():
-		Debug.printWarning(str("resetResourceToDefaults() Resource: ", resource, " has no resource_path • May be inline/dynamic resource?"), resource)
+		Debug.printWarning(str("resetResourceToDefaults() Resource: ", resource, " has no resource_path ・ May be inline/dynamic resource?"), resource)
 		return false
 
 	var savedResource: Resource = ResourceLoader.load(resource.resource_path, "", ResourceLoader.CACHE_MODE_IGNORE) # TBD: Use `CACHE_MODE_REPLACE_DEEP`?

@@ -22,7 +22,7 @@ Create a separate copy of the entire Comedot project folder for each of your gam
 
 💡 _You could also use a single `/Comedot/Game/` subfolder for multiple game projects: Create a new git repository in the `/Game/` subfolder, and use multiple git branches for each game. This may help with experimenting on different ideas while keeping the Comedot framework separate, so that any updates or modifications to the framework can be easily shared between all your games._
 
-❗️ Your main game scene must have the `/Scripts/Start.gd` script attached to the root node (or any other node as long as it runs before other scripts, just to be safe) so it can initialize the Comedot framework environment and apply global flags etc.
+❗️ Configure `res://ComedotProjectSettings.tres` to setup the Comedot framework environment such as the main game scene, music options, turn-based mode, and debug flags.
 
 
 # 🐣 Understand the Basics
@@ -42,6 +42,8 @@ Create a separate copy of the entire Comedot project folder for each of your gam
 🎬 The quickest way to learn/teach something is by example, so take a look in `/Templates/Examples/` and `/Templates/Scenes/` for very basic gameplay that you can duplicate and modify.
 
 🎬 Scenes in  `/Tests/` are used in the development process of various components and subsystems such as `/Tests/Upgrades/UpgradeTest.tscn` and `/Tests/TurnBased/TurnBasedTest.tscn` that you can examine to see how those features work.
+
+💡 The `/Notes/` folder contains lists such as `Components Catalog.md` to help you quickly find the suitable entities/components/scripts for your needs.
 
 
 # 👤 Make a Player Entity
@@ -175,5 +177,3 @@ When you need to add new functionality specific to your game, you have the follo
 
 
 ----
-
-💬 For more questions, summon @Syntaks.io on Discord on a night of a full moon.

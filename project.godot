@@ -16,11 +16,11 @@ config/name_localized={
 "ja_Kana_JP": "カムドット"
 }
 config/description="Components Framework for Godot"
-config/version="4.7.0.30.69"
+config/version="4.8.0.1.69"
 config/tags=PackedStringArray("components", "framework", "ecs", "plugin", "template")
 run/main_scene="uid://7hpq16neqhai"
 config/project_settings_override="res://Game/override.cfg"
-config/features=PackedStringArray("4.7", "C#")
+config/features=PackedStringArray("4.8", "C#")
 run/max_fps=60
 boot_splash/bg_color=Color(0.086, 0.004, 0.2, 1)
 boot_splash/stretch_mode=0
@@ -44,6 +44,10 @@ GlobalUI="*res://AutoLoad/GlobalUI.tscn"
 GlobalSonic="*res://AutoLoad/GlobalSonic.tscn"
 TurnBasedCoordinator="*res://AutoLoad/TurnBasedCoordinator.tscn"
 MCPRuntimeProbe="*res://addons/godot_mcp/runtime/mcp_runtime_probe.gd"
+
+[comedot]
+
+settings/comedotProjectSettingsPath="res://ComedotProjectSettings.tres"
 
 [debug]
 
@@ -251,7 +255,7 @@ fire={
 , Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":10,"pressure":0.0,"pressed":true,"script":null)
 , Object(InputEventJoypadMotion,"resource_local_to_scene":false,"resource_name":"","device":-1,"axis":5,"axis_value":1.0,"script":null)
 , Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"button_mask":1,"position":Vector2(254, 59),"global_position":Vector2(262, 139),"factor":1.0,"button_index":1,"canceled":false,"pressed":true,"double_click":false,"script":null)
-, Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194326,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+, Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194325,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
 ]
 }
 interact={

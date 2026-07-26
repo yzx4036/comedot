@@ -1,6 +1,5 @@
 [gd_scene format=3 uid="uid://cn7oaxowiga7m"]
 
-[ext_resource type="Script" uid="uid://dw6w3lvrh2ggp" path="res://Scripts/Start.gd" id="1_5ak0q"]
 [ext_resource type="Script" uid="uid://b3tgnb1y0hgk1" path="res://Entities/Entity.gd" id="2_dudyc"]
 [ext_resource type="PackedScene" uid="uid://c7jqgvvksna1y" path="res://Components/Movement/WaveMotionComponent.tscn" id="3_785qx"]
 [ext_resource type="PackedScene" uid="uid://cw0tix585c5wr" path="res://Templates/Entities/SpriteEntityTemplate.tscn" id="4_e10pj"]
@@ -9,8 +8,6 @@
 [ext_resource type="Material" uid="uid://d21lgwadan5lv" path="res://Assets/Materials/Unshaded.tres" id="6_stcti"]
 
 [node name="WaveMovementTest" type="Node2D" unique_id=1042628289]
-script = ExtResource("1_5ak0q")
-showDebugWindow = false
 
 [node name="Grid" type="Node2D" parent="." unique_id=549364325]
 script = ExtResource("2_dudyc")
@@ -29,8 +26,6 @@ debugMode = true
 
 [node name="DebugComponent" parent="SpriteEntity1" unique_id=1271906617 instance=ExtResource("4_n5ct3")]
 propertiesToChart = Array[NodePath]([NodePath("..:position:x"), NodePath("../WaveMotionComponent:wavePosition:x"), NodePath("..:position:y"), NodePath("../WaveMotionComponent:wavePosition:y../WaveMotionComponent")])
-chartVerticalHeight = 200.0
-chartValueScale = 1.0
 
 [node name="EntityLabel" parent="SpriteEntity1/DebugComponent/Labels" parent_id_path=PackedInt32Array(1271906617, 2121881212) index="0" unique_id=1219470630]
 visible = false

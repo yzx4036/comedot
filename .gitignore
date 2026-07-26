@@ -24,6 +24,7 @@ mono_crash.*.json
 .claude/tasks/
 .claude/shell-snapshots/
 .claude/file-history/
+Notes/AGENTS.override.md
 
 # Game-specific experiments
 /Lab/*

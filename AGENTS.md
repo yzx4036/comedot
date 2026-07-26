@@ -1,29 +1,32 @@
 # AGENTS.md
 # Guidelines for the Comedot Project and Repository
 
+Search this file for section headers starting with `##` to quickly find instructions related to a specific category of tasks.
+
+Each section contains instructions or information starting with a `-` bullet list marker, with further related information as nested & indented bullets.
+
 
 ## Project Overview
 - This project is a template for the Godot game engine.
 - It's a component-based framework similar to ECS for making 2D games.
 - It's open-source and hosted at https://github.com/InvadingOctopus/comedot
-- For details, see `README.md`
+- For details, see `/README.md`
 
 
 ## Folder Structure & Module Organization
-- `Components/`, `Entities/`: The core foundational classes of the framework and common gameplay components.
-- `AutoLoad/`: Global singletons, startup scripts and shared helper functions.
-- `Scripts/`: Shared scripts that can be used for any node type that isn't an entity or component.
-- `Resources/`: Classes for Godot `.tres` "Resources" (not media assets): Data containers for core gameplay elements such as `Stat.gd`
-- `Scenes/`, `UI/`: Reusable and customizable scenes/nodes and UI controls/layouts.
-- `Templates/`: Prebuilt entity+component sets and scenes for quick gameplay prototyping.
-- `Assets/`: Art/sound/music and other media, including third-party packs for placeholders and prototyping.
-- `Tests/`: Playable scenes and supporting scripts for manually testing subsystems and mechanics such as combat or tile-based/turn-based components. Name format: `*Test.tscn` + `*Test.gd`
-- `addons/`: Godot Editor plugins.
-- `Temporary/`, `Lab/`: Transient experiments. All files in these folders should always be ignored. Disregard any errors or warnings in files in those folders. If a file in these folders prevents compilation/parsing/export, consider removing that file.
-- `Scripts/Tools/Tools.gd`, `*Tools.gd`: Files containing global static standalone helper functions for builtin Godot nodes & types. This is a workaround for the inability to extend builtin Godot types with custom methods without using subclasses.
-- `Game/`: Game-specific files that are NOT part of the Comedot framework itself. These files should be ignored when referring to the framework, and only accessed when considering an actual game being made with Comedot. Everything outside the `Game/` subtree is part of the framework that is shared between multiple games. When generating code for a game, only the files in the `Game/` subtree should be modified. `Game/AGENTS.override.md` takes precedence for any activity inside the `Game/` subtree.
-- This project currently has two separate Git repositories: the root repository is the Comedot framework repository, and the `Game/` directory contains the business/game project repository. Treat them as independent repositories for all Git status, branch, merge, commit, and history operations.
-- The root Comedot repository intentionally ignores `Game/` via `.gitignore`: game project folders under `Game/` are managed as independent Git repositories. Keep this separation intact. Framework tasks should not use the root repository Git state to reason about `Game/` changes, and do not repeatedly run root `git status` just to check `Game/` work.
+- `/Components/`, `/Entities/`: The core foundational classes of the framework and common gameplay components.
+- `/AutoLoad/`: Global singletons, startup scripts and shared helper functions.
+- `/Scripts/`: Shared scripts that can be used for any node type that isn't an entity or component.
+- `/Resources/`: Classes for Godot `.tres` "Resources" (not media assets): Data containers for core gameplay elements such as `Stat.gd`
+- `/Scenes/`, `/UI/`: Reusable and customizable scenes/nodes and UI controls/layouts.
+- `/Templates/`: Prebuilt entity+component sets and scenes for quick gameplay prototyping.
+- `/Assets/`: Art/sound/music and other media, including third-party packs for placeholders and prototyping.
+- `/Tests/`: Playable scenes and supporting scripts for manually testing subsystems and mechanics such as combat or tile-based/turn-based components. Name format: `*Test.tscn` + `*Test.gd`
+- `/addons/`: Godot Editor plugins.
+- `/Notes/`: Design documents, indexes/catalogs of entities/components/scripts, and other development notes. When looking for a component or script to use for a task, search these `*Catalog.md` files.
+- `/Temporary/`, `/Lab/`: Transient experiments. All files in these folders should always be ignored. Disregard any errors or warnings in files in those folders. If an untracked file in these folders prevents compilation/parsing/export, exclude that file or consider temporarily removing it.
+- `/Scripts/Tools/Tools.gd`, `*Tools.gd`: Files containing global static standalone helper functions for builtin Godot nodes & types. This is a workaround for the inability to extend builtin Godot types with custom methods without using subclasses.
+- `/Game/`: Game-specific files that are NOT part of the Comedot framework itself. These files should be ignored when referring to the framework, and only accessed when considering an actual game being made with Comedot. Everything outside the `/Game/` subtree is part of the framework that is shared between multiple games. When generating code for a game, only the files in the `/Game/` subtree should be modified. `/Game/AGENTS.override.md` takes precedence for any activity inside the `/Game/` subtree.
 
 
 ## Subsystems
@@ -39,49 +42,32 @@
 
 
 ## Build, Run, Test & Export
-- Open the Comedot template in Godot by selecting `project.godot` 
-- `project.godot` contains the required Godot version under `config/features` and other metadata. Comedot always targets the latest version (release or beta).
+- Open the Comedot template in Godot by selecting `project.godot`
+- `project.godot` contains the required Godot version under `config/features` and other metadata. Comedot generally targets the latest version (release or beta).
 - Refer to the official documentation when needed, at `https://docs.godotengine.org/en/latest/`
-- When a request in this project needs Godot Engine interaction (editor state, scenes, nodes, running project, debugger, output/errors, runtime input, or `测试xx` / `测试<something>`), first read `_Doc/GodotMcpCliAutomationGuide.md` and treat `godot-mcp-cli` as the project-specific skill/tool workflow to use first when applicable.
-- For Godot MCP operation, implementation, or testing tasks, use the local plugin command processors under `addons/godot_mcp/commands/` as the authoritative map of available Godot-side operations, then call the corresponding `godot-mcp-cli` tools where applicable.
-- For MCP-assisted input, node, scene, implementation, testing, and acceptance workflows, map the need to the relevant command processor first: `input_commands.gd` for mouse/keyboard/actions, `node_commands.gd` for node operations, `scene_commands.gd` for scene operations, plus project/debugger/editor/script/enhanced/asset command processors as needed.
-- For runtime movement, interaction, attacks, and UI clicking, use `input_commands.gd` capabilities actively: prefer project InputMap actions, and combine keyboard, mouse, click/drag, and input sequences when needed to reproduce player behavior.
 - Run locally from the editor (F5) or run individual scenes (F6) for focused testing.
 - To verify scripts and check parser errors etc. run Godot in "headless" mode by passing the following flags to the Godot executable: `--headless --check-only --path [path] --script [filename]`
 	- To run for N frames, use `--quit-after [frame count]`
 	- Godot may crash at startup in headless mode if it cannot write the default `user://logs` file: Pass an explicit writable `--log-file` argument in `/tmp` or another suitable folder.
-	- If the Godot executable is unavailable or live execution is not necessary, just read/lint GDScript manually for static analysis. 
+	- If the Godot executable is unavailable or live execution is not necessary, just read/lint GDScript manually for static analysis.
 	- For other commands and flags, see `https://docs.godotengine.org/en/latest/tutorials/editor/command_line_tutorial.html`
 - Exports are driven by Godot’s export presets (`export_presets.cfg`); use the editor’s Export dialog for builds.
-- Tests are represented as Godot scenes/scripts under `Tests/` to be played manually. `*Test.tscn` with companion `.gd` where needed.
+- Tests are represented as Godot scenes/scripts under `/Tests/` to be played manually. `*Test.tscn` with companion `.gd` where needed.
 - Run tests by opening a test scene and manually running it in the editor.
 - No formal coverage targets are defined; keep regression tests near the relevant feature.
 
 
-## Git Automation Rules
-- When the user says `合并up_stream到dev`, automatically execute the repository merge workflow using the Git Flow branching model and completion concept. This means following Git Flow's feature branch workflow; it does not require calling the literal `git flow` command if the same workflow is implemented with normal Git commands.
-	1. Create a new feature branch with the configured Git Flow feature prefix and a clear merge name such as `feature/merge-up_stream-to-dev`.
-	2. On that feature branch, fetch / pull the remote `up_stream` branch and merge the remote update into the feature branch.
-	3. If merge conflicts occur, resolve them autonomously when the correct resolution is clear, then continue the merge. If the conflict cannot be resolved safely, stop and notify the user to resolve it manually.
-	4. After the merge is clean, finish the feature in the Git Flow sense: merge the feature branch back into the Git Flow development branch, which is expected to be `dev` or the repository-configured development branch, then remove the completed feature branch when appropriate.
-	5. Analyze the changes pulled from `up_stream` and update the relevant documentation when the merge changes project behavior, workflow, architecture, gameplay plan, MCP/Godot automation guidance, or repository rules.
-- When the user says `提交dev`, automatically analyze the current relevant repository changes and create an appropriate commit on `dev` or the current Git Flow development branch. Use a Chinese commit description. Add a concise prefix when appropriate, especially `[feat]` for feature additions and `[fix]` for bug fixes; choose another clear Chinese title without those prefixes when the change is documentation, planning, refactor, chore, or mixed maintenance work.
-- Apply these workflows to the current relevant Git repository only. The root repository is for Comedot framework changes; the `Game/` repository is for business/game project changes. Do not mix branches, commits, merges, or status checks across the two repositories.
-- Do not push the resulting branch or `dev` to a remote unless the user explicitly asks.
-
-
 ## Code Review
-- Ignore the contents of `Temporary/` and `Lab/`
+- Ignore the contents of `/Temporary/` and `/Lab/`
 - Functions and types marked with an `@experimental` comment are expected to have bugs and incomplete implementations. Findings involving experimental code should be a lower priority and not expected to be fixed, unless important non-experimental code depends on that experimental code.
 - Not all `null`-able references need to be guarded: In some cases, a crash is better than a warning or a silent failure/skip, specially if it's a core object which should never be missing at runtime under normal circumstances.
-- Ignore the contents of `Game/` unless the prompt and context involves a specific game being made with the main framework project.
-- The contents of `Game/` are subject to the instructions in `Game/AGENTS.override.md`
-- Treat `Game/` as a separate project/repository boundary. For framework review, ignore `Game/` and its Git state. For game work, use `Game/AGENTS.override.md` and the active game project's own workflow instead of the root Comedot repository state.
+- Ignore the contents of `/Game/` unless the prompt and context involves a specific game being made with the main framework project.
+- The contents of `/Game/` are subject to the instructions in `/Game/AGENTS.override.md`
 - If an inline source code renderer does not support syntax highlighting for GDScript, use Swift syntax highlighting for fenced GDScript code blocks, as it closely resembles GDScript highlighting.
 
 
 ## Coding Style & Naming Conventions
-Follow the guidelines in `Conventions.md`, which includes these key rules:
+Follow the guidelines in `/Conventions.md`, which includes these key rules:
 - Tabs, not spaces; GDScript is indentation-sensitive.
 - Prefer camelCase for everything, including constants; avoid underscores except in rare cases.
 - Types (class names, enums) are Capitalized.
@@ -90,20 +76,22 @@ Follow the guidelines in `Conventions.md`, which includes these key rules:
 - Function/method names should be imperative verbs wherever it makes grammatical sense: `doSomething()`, `checkRequirements()`
 - Signal handlers should be named as `on[Emitter]_[signal]`
 - Prefer strong static typing: Write out explicit types, e.g. `var number: int = 42` instead of `var number := 42`, but `:=` may be used where the type isn't certain at coding time.
-- If instructions conflict or drift, `Conventions.md` takes precedence and includes exceptions for some rules. In case of ambiguity, match existing patterns.
+- If instructions conflict or drift, `/Conventions.md` takes precedence and includes exceptions for some rules. In case of ambiguity, match existing patterns.
 - There is no automated formatter configured; match existing style manually.
 
 
-## Generating New Code & Scenes
-- DO NOT EDIT ANY FILES UNLESS EXPLICITLY TOLD TO.
-- See `HowTo.md` and `Conventions.md` (specially the "Avoid" section)
+## Generating Code, Scripts, Scenes & Files
+- DO NOT EDIT ANY FILES UNLESS EXPLICITLY ASKED.
+	- Files in `/Temporary/` & `/.codex/` & `/.claude/` may be created/modified/deleted without requiring approval if necessary.
+	- Use `/Temporary/Test/` for creating and running temporary tests for verifying logic/behavior etc.
+- See `/HowTo.md` for human guidance that may also apply to AI agents (specially the "Avoid" section).
+	- In case of conflicts, this `/AGENTS.md` has precedence.
 - This framework is primarily for 2D games; Godot's 3D features & APIs such as `Node3D` are almost never used or needed.
-- For gameplay-related requests inside the active game project, first analyze `Game/Cd_ProjectZero/Docs/Gameplay/GameplayDesign.md` and `Game/Cd_ProjectZero/Docs/DevPlan.md`. Ensure the implementation does not drift from the documented game design unless the user explicitly decides to change direction. After completing gameplay work, check whether `DevPlan.md` needs updates and improve it when scope, milestone order, acceptance criteria, or next steps changed.
-- When implementing gameplay requirements, inspect existing Comedot framework entities and components first. Prefer reuse and extension. If a similar framework entity/component exists, create a game-layer subclass or inherited scene under `Game/` and extend it there instead of copying the framework code or creating a parallel system.
-- New game-layer gameplay entities and components must use the `GP` prefix for filenames, scene names/root node names, and `class_name` values, e.g. `GPBanditEntity.tscn`, `GPBanditEntity.gd`, `GPRouteEncounterComponent.gd`.
-- New gameplay behaviors should generally be implemented as components that can be reused in multiple games. 
-- "Components" are any node with a script that is a subclass of `Components/Component.gd`, and "entities" are any node with the `Entities/Entity.gd` script or its subclasses. Entities are just a container for components and multiple components can be added to an entity. Components are generally standalone and provide a single specific behavior or set of closely-related behaviors, but components may depend on each other and modify each other at runtime, such as `DamageComponent` + `DamageReceivingComponent` + `KnockbackOnHitComponent`
+- New gameplay behaviors should generally be implemented as components that can be reused in multiple games.
+- "Components" are any node with a script that is a subclass of `/Components/Component.gd`, and "entities" are any node with the `/Entities/Entity.gd` script or its subclasses. Entities are just a container for components and multiple components can be added to an entity. Components are generally standalone and provide a single specific behavior or set of closely-related behaviors, but components may depend on each other and modify each other at runtime, such as `DamageComponent` + `DamageReceivingComponent` + `KnockbackOnHitComponent`
 - Components are always a pair of a `.tscn` Godot scene file + a `.gd` GDScript file, even if the scene is empty, so they can be easily added to entity nodes. Component scripts must ultimately inherit from `Component.gd` or a subclass. Component root nodes must be added to the `components` node group.
+	- Abstract base classes ending in names like `*ComponentBase.gd` are an exception and may not have associated scenes.
+- When creating new entities and components, prefer copying scenes and scripts from `/Templates/` to use as a starting point etc.
 - A `class_name` must be used for all components and entities, and also for other types that are expected to be referenced from code or instantiated at runtime. Exceptions are short specific scripts such as `Spin.gd`
 - The root node of component scenes must be the closest relevant Godot builtin node type that matches the component's core purpose: For example, if the component uses a `Timer` and no other nodes, then the root node must be a `Timer` instead of `Node` with a `Timer` child.
 	- Simple components that don't need a specialized node and don't have any visual features should use `Node` as the root node instead of `Node2D`
@@ -113,7 +101,8 @@ Follow the guidelines in `Conventions.md`, which includes these key rules:
 - Entities, components and other nodes must be added to the relevant preset node groups such as `turnBased`, `players`, `enemies`, `collectibles` etc. as applicable.
 - Scripts that extend specific Godot builtin nodes types for a specific purpose or a simple effect do not have to be entities or components, such as `SpawnArea.gd` for `Area2D`,  or `Spin.gd` for any `Node2D`, or UI scripts such as `StatUI.gd` and `StatBar.gd` that are meant for `Control` nodes.
 - Filenames should be clear and precise. Add suffixes like `Entity` and `Component` to assist referencing and searching etc. Entities should be named like `MonsterEntity.gd` and components should be named like `MonsterAttackComponent.gd`. There may be exceptions for brevity for certain resources such as `Health.gd` instead of `HealthStat.gd` unless there is ambiguity. Standalone scripts that are not for an entity or component, such be named as a verb describing the action if applicable, like `Spin.gd` and `SnapToMouse.gd`. Filenames don't have to be short, for example `TurnBasedTileBasedPlatformerControlComponent`
-- When asked to make changes to code, also add comments to explain the logic if the code isn't simple and self-explanatory.
+- For logging, call `Debug.gd` functions such as `printLog()` etc. Use `Debug.printWarning()` instead of `push_warning()` and `Debug.printError()` instead of `push_error()`
+- When asked to make changes to code that is not a test or experiment, also add comments to explain the logic if the code isn't simple and self-explanatory.
 
 
 ## Common Godot Errors & Gotchas to Avoid
@@ -123,14 +112,16 @@ Follow the guidelines in `Conventions.md`, which includes these key rules:
 
 
 ## Commit & Pull Request Guidelines
-Commit messages should have a title that is short and imperative like `Add TurnBasedLab` or `Fix TurnBasedStateUIComponent`, referencing the file/class/type/issue.
-The commit message content should be a bullet list, using this notation for the bullet symbols:
-* Asterisk for changes that are not explicit additions of new features or removals of previous features, such as renames.
-+ A plus sign for additions of new properties/methods added to a class/type/file.
-- A minus sign for removal of properties/methods deleted from a class/type/file.
-! An exclamation sign for high impact fixes or the most important changes in the commit.
-? A question mark for some comments such as possible bugs, uncertain behavior, "TBD" (To Be Decided) remarks, etc.
-! TODO: An exclamation sign + `TODO:` etc. for updating dependents etc. affected by this commit, to be included in the following next commits, especially if this commit leaves the project in a broken state.
+- Commit messages should have a title that is short and imperative like `Add TurnBasedLab` or `Fix TurnBasedStateUIComponent`, referencing the file/class/type/issue.
+- Do not mix parent framework and `/Game/` commits.
+
+- The commit message content should be a bullet list, using this notation for the bullet symbols:
+	* Asterisk for changes that are not explicit additions of new features or removals of previous features, such as renames.
+	+ A plus sign for additions of new properties/methods added to a class/type/file.
+	- A minus sign for removal of properties/methods deleted from a class/type/file.
+	! An exclamation sign for high impact fixes or the most important changes in the commit.
+	? A question mark for some comments such as possible bugs, uncertain behavior, "TBD" (To Be Decided) remarks, etc.
+	! TODO: An exclamation sign + `TODO:` etc. for updating dependents etc. affected by this commit, to be included in the following next commits, especially if this commit leaves the project in a broken state.
 
 For PRs:
 - The submitter should describe the gameplay impact and affected components/scenes.

@@ -1,5 +1,6 @@
 ## A subclass of [InputComponent] that generates random input events on a [Timer] interval or other signals.
 ## TIP: EXAMPLE USAGE: A demo/"attract mode", random monster/NPC movement etc.
+## TIP: For a more basic component for quick prototyping etc., see [RandomMovementComponent]
 ## TIP: The [method performRandomAction] may be connected to signals such as [signal TurnBasedCoordinator.isReadyToStartTurn] etc.
 ## NOTE: If random input should be generated on external signals only, this component's [Timer] should be disabled.
 
@@ -13,6 +14,7 @@ const movementDirectionKey	:= &"randomMovementDirections"
 const aimDirectionKey		:= &"randomAimDirections"
 
 ## A [Dictionary] of possible [InputEventAction] [StringName]s (see [class GlobalInput.Actions]) and their "weights" that will be randomly generated from [method performRandomAction]
+## EXAMPLE: `{ &"fire": 3.0, &"jump": 1.0 } = 75% chance to Fire, 25% for Jump
 ## NOTE: A key named `&"randomMovementDirections"` will choose from [member randomMovementDirections]
 ## NOTE: A key named `&"randomAimDirections"` will choose from [member randomAimDirections]
 ## NOTE: Add an empty `&""` key to include an "idle" or "do nothing" or "skip" option.

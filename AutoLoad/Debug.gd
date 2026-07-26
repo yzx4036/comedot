@@ -7,17 +7,31 @@ extends Node
 
 #region Parameters
 
+var projectSettings: ComedotProjectSettings = ComedotProjectSettings.loaded
+
 ## Sets the visibility of "debug"-level messages in the log.
 ## NOTE: Does NOT affect normal logging.
-@export var shouldPrintDebugLogs: bool = OS.is_debug_build() # TBD: Should this be a constant to improve performance?
+@export var shouldPrintDebugLogs: bool = projectSettings.shouldPrintDebugLogs # TBD: Should this be a constant to improve performance?
 
-## Sets the visibility of the debug information overlay text, as well as the [member watchList].
+## NOTE: Only applicable in debug builds (i.e. running from the Godot Editor)
+@export var showDebugWindow: bool = projectSettings.showDebugWindow:
+	set(newValue):
+		showDebugWindow = newValue
+		if debugWindow: debugWindow.visible = newValue if OS.is_debug_build() else false # Always hide in release builds
+
+## Sets the visibility of the debug information overlay text, as well as the [member watchList]
 ## NOTE: Does NOT affect the visibility of the framework warning label.
-@export var showDebugLabels: bool = OS.is_debug_build():
+@export var showDebugLabels: bool = projectSettings.showDebugLabels:
 	set(newValue):
 		showDebugLabels = newValue
-		setLabelVisibility()
+		setVisibility()
 		self.set_process(showDebugLabels) # PERFORMANCE: Don't update per-frame if not needed
+
+## Displays a checkered grid parallax background, to assist with pixel-perfect alignment etc.
+@export var showDebugBackground: bool = projectSettings.showDebugBackground:
+	set(newValue):
+		showDebugBackground = newValue
+		setVisibility()
 
 ## A [Dictionary] of variables to monitor at runtime. The keys are the names of the variables or properties from other nodes.
 ## Updating the value of an existing key will update the label for that property i.e. to show its value at runtime.
@@ -82,11 +96,12 @@ func _notification(what: int) -> void: # This happens earlier than _enter_tree()
 
 func _ready() -> void:
 	# Debug.printLog("_ready()", self.get_script().resource_path.get_file(), "", "WHITE")
-	initializeLogWindow()
-	initializeDebugWindow()
+	# .call_deferred() to allow the main window to be positioned and displayed first etc.
+	initializeLogWindow.call_deferred()
+	initializeDebugWindow.call_deferred()
 	displayInitializationMessage("_ready()")
 	resetLabels()
-	setLabelVisibility()
+	setVisibility()
 	performFrameworkChecks()
 	self.set_process(showDebugLabels) # Apply setter because Godot doesn't on initialization
 
@@ -97,17 +112,24 @@ func resetLabels() -> void:
 	watchListLabel.text	= ""
 
 
-func setLabelVisibility() -> void:
+func setVisibility() -> void:
 	# NOTE: The warning label must always be visible
-	if label: label.visible = self.showDebugLabels
-	if watchListLabel: watchListLabel.visible = self.showDebugLabels
+	if label:			label.visible			= self.showDebugLabels
+	if watchListLabel:	watchListLabel.visible	= self.showDebugLabels
+	if debugBackground:	debugBackground.visible	= self.showDebugBackground
 
 
 func performFrameworkChecks() -> void:
 	var warnings: PackedStringArray
 
-	if not Global.hasStartScript:
-		warnings.append("! Start.gd script missing\nAttach to root node of main scene")
+	# Verify both the shared Resource provided by ComedotProjectSettings
+	# as well as the actual Resource file at the expected path
+	# because ComedotProjectSettings may have created a new Resource as a fallback.
+	var projectSettingsCheck: ComedotProjectSettings = ComedotProjectSettings.loadSettingsResource()
+	Global.hasComedotProjectSettings = is_instance_valid(self.projectSettings) and is_instance_valid(projectSettingsCheck)
+
+	if not Global.hasComedotProjectSettings:
+		warnings.append("! ComedotProjectSettings.tres missing")
 
 	warningLabel.text = "\n".join(warnings)
 
@@ -190,14 +212,15 @@ func initializeLogWindow() -> void:
 
 
 func initializeDebugWindow() -> void:
-	debugWindow.visible = OS.is_debug_build()
-	debugWindow.content_scale_factor = DisplayServer.screen_get_scale() # For Mac/Retina/HiDPI displays
+	var mainWindow: Window			 = self.get_window()
+	debugWindow.current_screen		 = mainWindow.current_screen
+	debugWindow.content_scale_factor = DisplayServer.screen_get_scale(mainWindow.current_screen) # For Mac/Retina/HiDPI displays
 
 	# Position the Debug Window to the right of the main window
 	# TBD: Support for Right-To-Left locales? :')
-	var mainWindow: Window	= self.get_window()
 	debugWindow.position	= mainWindow.position
 	debugWindow.position.x += mainWindow.size.x + debugWindowSpacing
+	debugWindow.visible		= self.showDebugWindow if OS.is_debug_build() else false # Display after positioning
 	nextChartWindowPosition = mainWindow.position + Vector2i(0, mainWindow.size.y + debugWindowSpacing)
 
 
@@ -378,7 +401,7 @@ func printChange(variableName: String, previousValue: Variant, newValue: Variant
 ## Prints an array of variables in a highlighted color, along with a "stack trace" of the 3 most recent functions and their filenames before the log method was called.
 ## TIP: Helpful for quick/temporary debugging of bugs currently under attention.
 ## NOTE: NOT affected by [member shouldPrintDebugLogs] but only prints if running in a debug build.
-func printTrace(values: Array[Variant] = [], object: Variant = null, stackPosition: int = 2, separator: String = " [color=dimgray]•[/color] ") -> void:
+func printTrace(values: Array[Variant] = [], object: Variant = null, stackPosition: int = 2, separator: String = " [color=dimgray]・[/color] ") -> void:
 	if OS.is_debug_build():
 		const textColorA1: String = "[color=FF80FF]"
 		const textColorA2: String = "[color=C060C0]"

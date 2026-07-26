@@ -10,6 +10,27 @@ extends Panel
 # TODO: Add option to duplicate an existing Component?
 
 
+#region Parameters
+
+## If `true` then one of the template scenes from `/Templates/Entities/` is instantiated when a new [Entity] is created from the Comedock.
+## If `false` then a standalone node is created and its script and properties are set directly.
+## NOTE: PERFORMANCE: Using templates MAY be slower because extra scenes have to be loaded.
+@export var shouldUseTemplatesForNewEntities:	bool = false
+
+## If a newly created [Entiy] or [Component] has child nodes which affect its behavior,
+## such as the bullet emitter in [GunComponent] or the collision shapes in [DamageComponent] etc.
+## then this option will automatically enable the "Editable Children" option for that Entity/Component in the Godot Editor.
+@export var shouldShowEditableChildren:			bool = true
+
+@export var debugMode:							bool = false
+
+#endregion
+
+
+#region Constants
+
+#region Enums
+
 enum EntityTypes {
 	# NOTE: MUST correspond to the ids of the Add Entity button's PopupMenu
 	# DESIGN: The order is almost alphabetical, because Node2D has to be first.
@@ -25,8 +46,9 @@ enum TreeItemButtons {
 	editComponent = 1,
 	}
 
-#region Parameters
+#endregion
 
+#region Paths
 # TBD: `load` or `preload` or just put paths here?
 
 # NOTE: Convert strings `.to_lower()` before comparing strings
@@ -50,11 +72,22 @@ const componentScriptTemplate	:= "res://Templates/Scripts/Component/ComponentTem
 const componentIcon				:= preload("res://Assets/Icons/Component.svg")
 const createComponentIcon		:= preload("res://Assets/Icons/Component.svg") # EditorInterface.get_editor_theme().get_icon("Add", "EditorIcons")
 
+const searchComponentsShortcut	:= preload("res://addons/Comedot/SearchComponentsShortcut.tres")
+
+#endregion
+
+#region Icons
+
 # Access built-in Godot icons as per the documentation: https://docs.godotengine.org/en/stable/classes/class_editorinterface.html#class-editorinterface-method-get-editor-theme
 # > When creating custom editor UI, prefer accessing theme items directly from your GUI nodes using the get_theme_* methods.
 # Instead of: EditorInterface.get_editor_theme().get_icon()
-@onready var folderIcon: Texture2D = self.get_theme_icon(&"Folder", &"EditorIcons")
-@onready var sceneIcon:  Texture2D = self.get_theme_icon(&"InstanceOptions", &"EditorIcons")
+@onready var folderIcon: 	Texture2D = self.get_theme_icon(&"Folder",			&"EditorIcons")
+@onready var sceneIcon:  	Texture2D = self.get_theme_icon(&"InstanceOptions",	&"EditorIcons") # Clapboard 
+@onready var settingsIcon:	Texture2D = self.get_theme_icon(&"Tools",			&"EditorIcons") # Gear
+
+#endregion
+
+#region Colors
 
 const categoryColor				:= Color(0.235, 0.741, 0.878) # From Godot Editor's color for folders chosen to be "Blue"
 const categoryBackgroundColor	:= Color(0.051, 0.133, 0.184) # From Godot Editor's background color for folders chosen to be "Blue"
@@ -62,16 +95,22 @@ const componentBackgroundColor	:= Color(0, 0, 0) # From Godot Editor's backgroun
 const createNewItemButtonColor	:= Color.LAWN_GREEN
 const editComponentButtonColor	:= categoryColor
 
-const defaultHelpLabelText		:= "Select an Entity node in the scene to add Components."
-const defaultAddEntityTip		:= "Add a new Entity of the chosen base type to the currently selected node in the Scene Editor."
-const editComponentTipPrefix	:= "Open the source scene of "
+#endregion
 
-## If `true` then one of the template scenes from `/Templates/Entities/` is instantiated when a new [Entity] is created from the Comedock.
-## If `false` then a standalone node is created and its script and properties are set directly.
-## NOTE: PERFORMANCE: Using templates MAY be slower because extra scenes have to be loaded.
-@export var shouldUseTemplatesForNewEntities: bool = false
-@export var debugMode: bool = false
+#region Strings
 
+const defaultHelpLabelText			:= "Select an Entity node in the scene to add Components."
+
+const defaultAddEntityTip			:= "Add a new Entity of the chosen base type to the currently selected node in the Scene."
+const addEntityMultipleSelectionTip	:= "Cannot add an Entity to more than 1 parent Node selected in the Scene."
+const addEntityNoSceneTip			:= "Cannot add an Entity because no scene is open."
+
+const addComponentHelp				:= "Double-click a Component from the list to add it to %s"
+const defaultEditComponentTip		:= "Select a Component in the list to edit its source scene."
+const createComponentTip			:= "Create a new Component in the %s folder."
+const editComponentTipPrefix		:= "Open the source scene of "
+
+#endregion
 #endregion
 
 
@@ -114,7 +153,8 @@ var fileSystem:	EditorFileSystem:
 
 var selection:	EditorSelection
 var inspector:  EditorInspector
-
+var undoManager:EditorUndoRedoManager
+	
 @onready var componentsTree:			Tree		= %ComponentsTree
 @onready var newComponentDialog: ConfirmationDialog = $NewComponentDialog
 @onready var newComponentNameTextBox:	LineEdit	= %NewComponentNameTextBox
@@ -122,6 +162,8 @@ var inspector:  EditorInspector
 
 #endregion
 
+
+#region Initialization
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -142,15 +184,22 @@ static func printError(message: String) -> void:
 
 
 func setupUI() -> void:
-	%DebugReloadButton.visible = debugMode
+	%DebugReloadButton.visible			= debugMode
+
+	%SettingsButton.icon				= self.settingsIcon
+	%HelpLabel.text						= defaultHelpLabelText
+
+	%AddEntityMenuButton.modulate		= createNewItemButtonColor
+	%AddEntityMenuButton.tooltip_text	= defaultAddEntityTip
 	
-	%AddEntityMenuButton.modulate = createNewItemButtonColor
-	%AddEntityMenuButton.tooltip_text = defaultAddEntityTip
+	var addEntityMenu: PopupMenu = %AddEntityMenuButton.get_popup()
+	addEntityMenu.id_pressed.connect(self.onAddEntityMenu_idPressed)
+	addEntityMenu.set_item_icon(EntityTypes.node2D,			addEntityMenu.get_theme_icon(&"Node2D",			 &"EditorIcons"))
+	addEntityMenu.set_item_icon(EntityTypes.area2D,			addEntityMenu.get_theme_icon(&"Area2D",			 &"EditorIcons"))
+	addEntityMenu.set_item_icon(EntityTypes.characterBody2D,addEntityMenu.get_theme_icon(&"CharacterBody2D", &"EditorIcons"))
+	addEntityMenu.set_item_icon(EntityTypes.sprite2D,		addEntityMenu.get_theme_icon(&"Sprite2D",		 &"EditorIcons"))
 
 	$NewComponentDialog.register_text_enter(newComponentNameTextBox)
-	%AddEntityMenuButton.get_popup().id_pressed.connect(self.onAddEntityMenu_idPressed)
-
-	%HelpLabel.text = defaultHelpLabelText
 
 	componentsTree.set_column_expand(0, true)
 	componentsTree.set_column_expand(1, false) # Prevent the button column from obscuring the component names.
@@ -165,13 +214,22 @@ func setupUI() -> void:
 
 	# Hook up with Inspector Gadget & the Selection
 	inspector = EditorInterface.get_inspector()
-	selection = EditorInterface.get_selection()
+	if not selection: selection = EditorInterface.get_selection()
 	onSelection_selectionChanged() # Trigger a "fake" event to update the UI for first time, to reflect the initial state 
-	selection.selection_changed.connect(self.onSelection_selectionChanged)
+	if not selection.selection_changed.is_connected(self.onSelection_selectionChanged):
+		selection.selection_changed.connect(self.onSelection_selectionChanged)
+
+	undoManager = plugin.get_undo_redo()
+
+	# Start listening for keyboard shortcuts after everything is ready
+	if not componentsTree.gui_input.is_connected(self.onComponentsTree_guiInput):
+		componentsTree.gui_input.connect(self.onComponentsTree_guiInput)
 
 	# Handled in Comedot.gd: plugin.add_tool_menu_item("New Component in Selected Folder", self.createNewComponentInSelectedFolder)
 
 	# TODO: Display the dock if it's hidden (like behind the FileSystem)
+
+#endregion
 
 
 #region The Erdtree
@@ -219,6 +277,8 @@ func buildComponentsTree() -> void:
 
 	#if debugMode:
 	printLog(str(componentsCount, " Components found & added to list"))
+	if  %TreeSearchBox and %TreeSearchBox.is_node_ready():
+		%TreeSearchBox.fuzzySearch.max_results = componentsCount + 10 # TBD: Leave room for any components created later
 
 	if componentsCount <= 0:
 		printLog("If the list is empty, try the \"Rescan Folders\" button or check the \"\\Components\\\" subfolder of this Godot project.")
@@ -237,20 +297,20 @@ func createCategoryTreeItem(categoryFolder: EditorFileSystemDirectory) -> TreeIt
 	var categoryName: String   = categoryFolder.get_name()
 	var categoryPath: String   = categoryFolder.get_path()
 
-	categoryRow.set_text(0, categoryName)
-	categoryRow.set_metadata(0, categoryPath)
-	categoryRow.set_tooltip_text(0, categoryPath)
+	categoryRow.set_text(0,			categoryName)
+	categoryRow.set_metadata(0,		categoryPath)
+	categoryRow.set_tooltip_text(0,	categoryPath)
 
 	# Customize the Tree row
-	categoryRow.set_icon(0, folderIcon)
+	categoryRow.set_icon(0,				folderIcon)
 	categoryRow.set_icon_modulate(0, categoryColor)
-	categoryRow.set_custom_color(0, categoryColor)
+	categoryRow.set_custom_color(0,  categoryColor)
 	categoryRow.set_custom_bg_color(0, categoryBackgroundColor)
 	categoryRow.set_expand_right(0, true)
-	categoryRow.set_selectable(0, false)
+	categoryRow.set_selectable(0,  false)
 
 	# Add a button for creating a new component
-	var buttonTooltip: String = "Create a new Component in the " + categoryName + " folder."
+	var buttonTooltip: String = createComponentTip % categoryName
 	categoryRow.add_button(1, createComponentIcon, 0, false, buttonTooltip)
 	categoryRow.set_text(1, "+")
 	categoryRow.set_text_alignment(1, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -289,7 +349,7 @@ func createComponentRowButtons(componentRow: TreeItem) -> void:
 	# var tooltipText: String = editComponentTipPrefix + selectedComponentName
 
 	componentRow.add_button(1, sceneIcon, 1, false, %EditComponentButton.tooltip_text)
-	componentRow.set_text(1, "Edit")
+	componentRow.set_text(1,  "Edit")
 	componentRow.set_text_alignment(1, HORIZONTAL_ALIGNMENT_RIGHT)
 	componentRow.set_text_overrun_behavior(1, TextServer.OVERRUN_NO_TRIMMING)
 	componentRow.set_expand_right(1, false)
@@ -304,6 +364,24 @@ func removeComponentRowButtons(componentRow: TreeItem) -> void:
 	componentRow.erase_button(1, 0)
 	componentRow.set_text(1, "")
 	componentRow.set_tooltip_text(1, "")
+
+
+## Temporarily hides the row from the Comedock list; a rescan will show the Component again.
+## Does NOT delete the component
+## DEBUG: ONLY available if [member debugMode]
+## WHY: For trimming the list before taking screenshots :)
+func hideSelectedComponentRow() -> bool:
+	if not debugMode or not selectedComponentRow: return false
+
+	var hiddenComponentName: String	= selectedComponentName
+	selectedComponentRow.free()
+	selectedComponentRow			= null
+	selectedComponentCategory		= null
+	%EditComponentButton.disabled	= true
+	%EditComponentButton.tooltip_text = defaultEditComponentTip
+
+	printLog("Component hidden from list: " + hiddenComponentName)
+	return true
 
 #endregion
 
@@ -320,10 +398,9 @@ func onComponentsTree_itemSelected() -> void:
 	selectedComponentRow = null
 	selectedComponentCategory = null
 	%EditComponentButton.disabled = true
-	%EditComponentButton.tooltip_text = "Select a Component in the list to edit its source scene."
+	%EditComponentButton.tooltip_text = defaultEditComponentTip
 
 	# Is a component row selected?
-
 	if selectedItem.get_text(0).to_lower().ends_with("component"): # NOTE: Omits `…ComponentBase` TODO: A less crude way of checking for component rows :')
 		selectedComponentRow = selectedItem
 		selectedComponentCategory = selectedItem.get_parent()
@@ -335,6 +412,15 @@ func onComponentsTree_itemSelected() -> void:
 ## Called when a row is double-clicked
 func onComponentsTree_itemActivated() -> void:
 	getSelectedComponentAndAddToSelectedNode()
+
+
+## Loads and displays the [ComedotProjectSettings]
+func onSettingsButton_pressed() -> void:
+	var projectSettings: Resource = ComedotProjectSettings.loadSettingsResource()
+	if not projectSettings or projectSettings is not ComedotProjectSettings:
+		printError("Could not load the ComedotProjectSettings Resource from the custom or default path: " + ComedotProjectSettings.projectSettingsResourcePathDefault)
+		return
+	EditorInterface.edit_resource(projectSettings)
 
 
 func onRefreshButton_pressed() -> void:
@@ -402,26 +488,26 @@ func onComponentsTree_itemEdited() -> void:
 
 ## Called when nodes are selected/unselected in the Scene Editor.
 func onSelection_selectionChanged() -> void:
-	var selectedNodes: Array[Node] = selection.get_top_selected_nodes()
-	var firstNode: Node = selectedNodes.front() if not selectedNodes.is_empty() else null
 	# TBD: Do we need all these variables?
+	var selectedNodes:	Array[Node]	= selection.get_top_selected_nodes()
+	var firstNode:		Node		= selectedNodes.front() if not selectedNodes.is_empty() else null
 
 	# Update the entity-related UI
 	# TBD: Support adding multiple new Entities to more than 1 selected Node?	
 
-	if selectedNodes.size() > 1:
-		%AddEntityMenuButton.disabled = true
-		%AddEntityMenuButton.tooltip_text = "Cannot add an Entity to more than 1 selected Node in the Scene Editor."
+	if selectedNodes.size() > 1: # Allow selecting only 1 parent Node to add Entities to
+		%AddEntityMenuButton.disabled		= true
+		%AddEntityMenuButton.tooltip_text	= addEntityMultipleSelectionTip
 	elif EditorInterface.get_edited_scene_root() == null:
-		%AddEntityMenuButton.disabled = true
-		%AddEntityMenuButton.tooltip_text = "Cannot add an Entity because no scene is open in the Scene Editor."
+		%AddEntityMenuButton.disabled		= true
+		%AddEntityMenuButton.tooltip_text	= addEntityNoSceneTip
 	else:
-		%AddEntityMenuButton.disabled = false
-		%AddEntityMenuButton.tooltip_text = defaultAddEntityTip
+		%AddEntityMenuButton.disabled		= false
+		%AddEntityMenuButton.tooltip_text	= defaultAddEntityTip
 
 	# Update the component-related UI
 
-	if firstNode is Entity: %HelpLabel.text = str("Double-click a Component from the list to add it to ", firstNode.name)
+	if firstNode is Entity: %HelpLabel.text = addComponentHelp % firstNode.name
 	else: %HelpLabel.text = defaultHelpLabelText
 
 
@@ -433,6 +519,46 @@ func reloadPlugin() -> void:
 	printLog("reloadPlugin")
 	EditorInterface.set_plugin_enabled(Global.frameworkTitle, false)
 	EditorInterface.set_plugin_enabled(Global.frameworkTitle, true)
+
+#endregion
+
+
+#region Input Events
+
+func onComponentsTree_guiInput(event: InputEvent) -> void:
+	if event is not InputEventKey or not event.is_pressed() or event.is_echo(): return
+
+	# NOTE: accept_event() suppresses propogation even to _unhandled_input()
+
+	if EditorInterface.get_editor_settings().is_shortcut("editor/open_search", event):
+		focusSearchBox()
+		accept_event() # A wrapper in [Control] for set_input_as_handled()
+		return
+
+	# Only debugging shortcuts ahead
+	if not debugMode: return
+
+	match event.keycode:
+		KEY_BACKSPACE, KEY_DELETE:
+			if hideSelectedComponentRow():
+				accept_event()
+
+
+func _shortcut_input(event: InputEvent) -> void:
+	if not self.is_visible_in_tree() \
+	or not searchComponentsShortcut \
+	or not event.is_pressed() \
+	or event.is_echo():
+		return
+
+	if searchComponentsShortcut is Shortcut and searchComponentsShortcut.matches_event(event):
+		focusSearchBox()
+		accept_event()
+
+
+func focusSearchBox() -> void:
+	%TreeSearchBox.grab_focus()
+	%TreeSearchBox.select_all()
 
 #endregion
 
@@ -493,21 +619,11 @@ func addNewEntity(entityType: EntityTypes = EntityTypes.node2D) -> void:
 	if debugMode: printLog(str("addNewEntity(): ", newEntity))
 
 	# Add the new Entity to the selected parent node
-	EditorInterface.edit_node(parentNode)
-	parentNode.add_child(newEntity, true) # force_readable_name
-	newEntity.owner = EditorInterface.get_edited_scene_root() # NOTE: For some reason, using `parentNode` directly does not work; the Entity is added to the SCENE but not to the scene TREE dock.
-
-	# Select the new Entity in the Editor, so the user can quickly modify it and add Components to it.
-	selection.clear()
-	selection.add_node(newEntity)
-	EditorInterface.edit_node(newEntity)
+	# via the EditorUndoRedoManager
+	undoableAddNode(parentNode, newEntity, "Add Entity: " + newEntity.name)
 	# EditorInterface.set_script(preload(entityBaseScript)) # TBD: Needed?
-	# TODO: Set the focus to the Scene Tree Dock
 
 	printLog(str("Added Entity: ", newEntity, " → ", newEntity.get_parent()))
-
-	# Expose the sub-nodes of the new Entity to make it easier to modify any, if needed.
-	newEntity.get_parent().set_editable_instance(newEntity, %EditableChildrenCheckBox.button_pressed)
 
 
 func getSelectedComponentAndAddToSelectedNode() -> void:
@@ -552,17 +668,8 @@ func addComponentToSelectedNode(componentPath: String) -> void:
 	if debugMode: printLog(str(newComponentNode))
 
 	# Add the Component to the selected Entity
-	EditorInterface.edit_node(parentNode)
-	parentNode.add_child(newComponentNode, true) # force_readable_name
-	newComponentNode.owner = EditorInterface.get_edited_scene_root() # NOTE: For some reason, using `parentNode` directly does not work; the Component is added to the SCENE but not to the Scene Dock TREE.
-
-	# Select the new Component in the Editor, so the user can quickly modify it in the Inspector.
-	selection.clear()
-	selection.add_node(newComponentNode)
-	EditorInterface.edit_node(newComponentNode)
-
-	# Expose the sub-nodes of the new Component to make it easier to modify any, if needed.
-	newComponentNode.get_parent().set_editable_instance(newComponentNode, %EditableChildrenCheckBox.button_pressed)
+	# via the EditorUndoRedoManager
+	undoableAddNode(parentNode, newComponentNode, "Add " + newComponentNode.name)
 
 	# Log
 	printLog(str("Added Component: ", newComponentNode, " → ", newComponentNode.get_parent()))
@@ -601,18 +708,19 @@ func validateNewComponentPath(folderPath: String, componentName: String) -> bool
 	# TODO: Trim whitespace
 	if folderPath.is_empty() or componentName.is_empty(): return false
 	elif not DirAccess.dir_exists_absolute(folderPath):
-		printError("folderPath does not exist: " + folderPath)
+		printError("validateNewComponentPath(): folderPath does not exist: " + folderPath)
 		return false
 	elif not folderPath.begins_with("res://"):
-		printError("folderPath must begin with \"res://\": " + folderPath)
+		printError("validateNewComponentPath(): folderPath must begin with \"res://\": " + folderPath)
 		return false
 	elif componentName.contains(".") or componentName.contains(" ") or not componentName.is_valid_filename():
-		printError("Invalid componentName — Must be alphanumeric with no space or special characters: " + componentName)
+		printError("validateNewComponentPath(): componentName invalid, must be alphanumeric with no space or special characters: " + componentName)
 		return false
 	else: return true
 
 
 ## Returns the path of the new component's ".tscn" scene file if successful.
+## WARNING: This is NOT undo'able.
 func createNewComponentOnDisk(destinationFolderPath: String, newComponentName: String = "NewComponent") -> String:
 	# TODO: More reliable file/path naming and operations with no room for errors. File system work is nasty business!
 	# TBD:  Enforce valid & unique name
@@ -714,6 +822,43 @@ func editSelectedComponent() -> void:
 	EditorInterface.open_scene_from_path(scenePath)
 
 	# TBD: EditorInterface.edit_script(load(scriptPath)) # NOTE: Causes lag # TBD: CHECK: Is this the best way to tell the Script Editor to open a script?
+
+#endregion
+
+
+#region Undo/Redo
+
+func undoableAddNode(parentNode: Node, newNode: Node, actionName: String) -> void:
+	var sceneRoot: Node = EditorInterface.get_edited_scene_root()
+
+	undoManager.create_action(actionName)
+
+	# Add the new Entity or Component to the selected parent node
+	undoManager.add_do_method(parentNode, &"add_child", newNode, true) # force_readable_name
+	undoManager.add_do_method(newNode,    &"set_owner", sceneRoot) # The owner of the new Entity or Component must be the currently edited "scene root"
+
+	# Expose the sub-nodes of the new Entity or Component to make it easier to modify any if needed
+	if shouldShowEditableChildren and newNode.get_child_count() > 0:
+		# NOTE: set_editable_instance() must be called on the PARENT or ancestor node of the Entity or Component
+		# NOTE: Use `shouldShowEditableChildren` instead of `true` or `false` so that children are hidden when that option is disabled, in case the child nodes were already automatically shown somehow.
+		undoManager.add_do_method(parentNode,	&"set_editable_instance", newNode, shouldShowEditableChildren)
+		undoManager.add_undo_method(parentNode,	&"set_editable_instance", newNode, not shouldShowEditableChildren)
+
+	# DESIGN: Do not save/restore the list of selected nodes:
+	# The Godot Editor's own built-in Create New Node etc. actions also don't preserve the previous selection.
+	
+	# On undo, remove the newly-added Entity or Component
+	undoManager.add_undo_method(newNode,	&"set_owner",	null)
+	undoManager.add_undo_method(parentNode,	&"remove_child",newNode)
+	
+	undoManager.add_do_reference(newNode) # Make sure the newly created node CANNOT be freed while the undo history still needs it for redo
+	undoManager.commit_action() # Calls all `do` methods such as add_child() etc.
+	
+	# Select the new Entity or Component in the Editor, so the user can quickly modify it and add other nodes to it
+	selection.clear()
+	selection.add_node(newNode)
+	EditorInterface.edit_node(newNode)
+	# DESIGN: No need to focus the Scene Dock etc; just keep the current focus wherever it is, e.g. to let the user quickly move new Entities with the arrow keys etc.
 
 #endregion
 
