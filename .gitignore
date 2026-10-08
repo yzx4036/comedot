@@ -26,19 +26,24 @@ mono_crash.*.json
 .claude/file-history/
 Notes/AGENTS.override.md
 
-# Game-specific experiments
+# Temporary Experiments
 /Lab/*
-/Game/*
+/Temporary/
 override.cfg
 
-# etc.
+# Game/: 独立业务仓库，保持忽略（本地约定，勿随上游合并移除）
+/Game/*
+
+# Operating System junk
 .DS_Store
-/Temporary/
+[Dd]esktop.ini
+Thumbs.db
+*.lnk
+
 #特殊addon
 AI资源库
 addons/npc_library_tool
 
 # etc
-.DS_Store
 .idea
 _ConfigTables/gen_code.bat

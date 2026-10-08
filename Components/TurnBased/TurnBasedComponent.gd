@@ -21,7 +21,7 @@ extends Component # + TurnBasedObjectBase
 #region Parameters
 
 @export var isEnabled: bool = true:
-	set = setIsEnabled # Use a separate function for the property setter so that subclasses may override it.
+	set = setIsEnabled # Use a separate function for the setter to let subclasses override it
 
 ## Property setter for [member isEnabled] as a separate function to let subclasses override it.
 func setIsEnabled(newValue: bool) -> void:
@@ -35,17 +35,17 @@ func setIsEnabled(newValue: bool) -> void:
 ## Returns: [TurnBasedCoordinator.currentTurn]
 var currentTurn: int:
 	get: return TurnBasedCoordinator.currentTurn # TBD: Should it forward to TurnBasedEntity?
-	set(newValue): printError("currentTurn should not be set; use TurnBasedCoordinator") # TEMP: To catch bugs
+	set(_newValue): printError("currentTurn should not be set; use TurnBasedCoordinator") # TEMP: To catch bugs
 
 ## Returns: [member TurnBasedCoordinator.stateMachine]'s current state.
 var currentTurnState: StringName:
 	get: return TurnBasedCoordinator.stateMachine.currentState # TBD: Should it forward to TurnBasedEntity?
-	set(newValue): printError("currentTurnState should not be set; use TurnBasedCoordinator") # TEMP: To catch bugs
+	set(_newValue): printError("currentTurnState should not be set; use TurnBasedCoordinator") # TEMP: To catch bugs
 
 ## Returns: [TurnBasedCoordinator.turnsProcessed]
 var turnsProcessed: int:
 	get: return TurnBasedCoordinator.turnsProcessed # TBD: Should it forward to TurnBasedEntity?
-	set(newValue): printError("turnsProcessed should not be set; use TurnBasedCoordinator") # TEMP: To catch bugs
+	set(_newValue): printError("turnsProcessed should not be set; use TurnBasedCoordinator") # TEMP: To catch bugs
 
 #endregion
 

@@ -386,7 +386,8 @@ func printVariables(values: Array[Variant], separator: String = "\t ", color: St
 ## Affected by [member shouldPrintDebugLogs]
 func printChange(variableName: String, previousValue: Variant, newValue: Variant, logAsTrace: bool = false) -> String:
 	# TODO: Optional charting? :)
-	if shouldPrintDebugLogs and previousValue != newValue:
+	if shouldPrintDebugLogs \
+	and (typeof(previousValue) != typeof(newValue) or previousValue != newValue): # Compare types first because some different Variant types can't be compared with `!=`
 		var difference: String
 		if (newValue is int or newValue is float) and (previousValue is int or previousValue is float):
 			difference = " (%+f" % (newValue - previousValue) + ")"
@@ -491,6 +492,42 @@ static func updateLastFrameLogged() -> void:
 	if not lastFrameLogged == Engine.get_frames_drawn():
 		lastFrameLogged = Engine.get_frames_drawn()
 		print_rich(str("\n[right][u][b]Frame ", lastFrameLogged, "[/b] ", float(Time.get_ticks_msec()) / 1000))
+
+#endregion
+
+
+#region Logging in Editor for @tool Scripts
+
+## [method printLog] equivalent for `@tool` scripts running in the Godot Editor.
+static func printEditorLog(message: String = "", object: Variant = null, messageColor: String = "lightgray", objectColor: String = "white") -> void:
+	if Engine.is_editor_hint(): print_rich(str("[color=", objectColor, "]", object, "[/color] [color=", messageColor, "]", message))
+	else: Debug.printLog(message, object, messageColor, objectColor)
+
+
+## [method printResourceLog] equivalent for `@tool` scripts running in the Godot Editor.
+static func printEditorResourceLog(message: String = "", object: Variant = null) -> void:
+	if Engine.is_editor_hint(): print_rich(str("[color=", Global.Colors.logResource, "]", object, "[/color] ", message))
+	else: Debug.printResourceLog(message, object)
+
+
+## [method printWarning] equivalent for `@tool` scripts running in the Godot Editor.
+static func printEditorWarning(message: String = "", object: Variant = null, objectColor: String = "white") -> void:
+	if Engine.is_editor_hint():
+		var callerOfLogger: String = " ← " + getCaller(2)
+		push_warning(str("⚠️ ", object, " ", message, callerOfLogger))
+		print_rich(str("[indent]􀇿 [color=yellow]", object, " ", message, "[color=orange]", callerOfLogger))
+	else:
+		Debug.printWarning(message, object, objectColor)
+
+
+## [method printError] equivalent for `@tool` scripts running in the Godot Editor.
+static func printEditorError(message: String = "", object: Variant = null, objectColor: String = "white") -> void:
+	if Engine.is_editor_hint():
+		var plainText: String = str("❗️ ", object, " ", message, " ← ", getCaller(2))
+		push_error(plainText)
+		printerr(plainText)
+	else:
+		Debug.printError(message, object, objectColor)
 
 #endregion
 

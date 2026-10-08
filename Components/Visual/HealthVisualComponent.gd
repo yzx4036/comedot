@@ -1,104 +1,109 @@
-## Displays visual effects and indicators when a [HealthComponent]'s health [Stat] value changes, negatively or positvely (damage or healing).
+## Displays visual effects and indicators when a [HealthComponent]'s health [Stat] value changes, negatively or positively (damage or healing).
 ## NOTE: The effects may occur even when the Stat is modified elsewhere WITHOUT any damage happening to this component's parent entity,
 ## for example if the same "Health" Stat is shared between multiple Entities!
-## TIP: To show effects only when ACTUAL DAMAGE is received, use [DamageVisualComponent]
+## TIP: Use [DamageVisualComponent] to show effects only on incoming DAMAGE attempts, i.e. on [signal DamageReceivingComponent.didReceiveDamage]
+## ALERT: [HealthVisualComponent] is not triggered if a [ShieldedHealthComponent] absorbs damage.
 ## Requirements: [HealthComponent]
-## @experimental
 
 class_name HealthVisualComponent
 extends Component
-
-# TODO: Better implementation
-# TODO: Reduce code duplication with [DamageVisualComponent]
-# TBD:  Change to only showing healing and remaining health? And move damage effects to [DamageVisualComponent] only?
 
 
 #region Parameters
 
 ## The node to display effects on, such as an [AnimatedSprite2D].
 ## If omitted, the first [AnimatedSprite2D] or [Sprite2D] sibling is used, if any, otherwise the parent entity is used.
-@export var nodeToAnimate: CanvasItem
-
-## The number of times to "blink" (hide then show) the entity sprite.
-@export var blinkCount: int = 3
-
-## The speed of the "blinking" animation (repeatedly hide and show).
-@export var blinkDuration: float = 0.05
+@export var nodeToAnimate:	CanvasItem
 
 ## If `true`, adds a red tint to the entity, increasing in intensity as the health decreases.
 ## @experimental
-@export var shouldTint: bool = false:
+@export var shouldTint:		bool:
 	set(newValue):
 		if newValue != shouldTint:
 			shouldTint = newValue
 			if self.is_node_ready(): # Avoid crash before _ready()
-				if shouldTint and healthComponent: updateTint()
-				else: nodeToAnimate.modulate = Color.WHITE
+				if shouldTint and healthComponent:
+					modulateBeforeTint = nodeToAnimate.modulate
+					updateTint()
+				else:
+					if tintTween: tintTween.kill() # Remove any ongoing anymations
+					nodeToAnimate.modulate = modulateBeforeTint
 
-## Shows a [TextBubble] representing the current health value or the difference.
+## Shows a [GameplayResourceBubble] representing the current health value or the difference.
 ## The bubble is set as a child node of the entity, to avoid being affected by the effects on [nodeToAnimate].
-@export var shouldEmitBubble: bool = true
-@export var detachedBubbles:  bool = false ## If `true` & [member shouldEmitBubble], text bubbles will not move together with the target entity's sprite.
+@export var shouldEmitBubble:	bool	= true
+@export var bubbleColorPositive: Color	= Color.GREEN
+@export var bubbleColorNegative: Color	= Color.RED
+@export var bubbleOffset:		Vector2	= Vector2(0, -16) ## The position relative to the entity from which bubbles are bobbled.
+@export var detachedBubbles:	bool ## If `true` & [member shouldEmitBubble], text bubbles will not move together with the target entity's sprite.
 
-@export var shouldShowRemainingHealth: bool = false ## If `true`, the [TextBubble] shows the REMAINING health instead of the DIFFERENCE.
+## If `true` (default) the [GameplayResourceBubble] shows the REMAINING health instead of the DIFFERENCE.
+## WARNING: If `false` then this will show the changes in the health [Stat], which may be the same as the damage amount shown by [DamageVisualComponent], causing duplicate bubbles.
+@export var shouldShowRemainingHealth: bool = true
 
 #endregion
 
 
+#region State
+var tintTween:			Tween
+var modulateBeforeTint:	Color
+#endregion
+
+
 #region Dependencies
-var healthComponent: HealthComponent: ## May also accept [ShieldedHealthComponent].
+var healthComponent: HealthComponent: ## Includes [ShieldedHealthComponent] etc.
 	get:
 		if not healthComponent: healthComponent = getCoComponent(HealthComponent, true) # findSubclasses
 		return healthComponent
 #endregion
 
 
+#region Events
+
 func _ready() -> void:
 	if not nodeToAnimate: nodeToAnimate = entity.findFirstChildOfAnyTypes([AnimatedSprite2D, Sprite2D])
-	if debugMode: printDebug(str("nodeToAnimate: ", nodeToAnimate))
+	modulateBeforeTint =  nodeToAnimate.modulate
+	if debugMode: printDebug(str("nodeToAnimate: ", nodeToAnimate, ", modulateBeforeTint: ", modulateBeforeTint))
 
-	connectSignals()
-
-
-func connectSignals() -> void:
 	healthComponent.healthDidDecrease.connect(self.onHealthComponent_healthChanged)
 	healthComponent.healthDidIncrease.connect(self.onHealthComponent_healthChanged)
+	if shouldTint: updateTint()
 
 
 func onHealthComponent_healthChanged(difference: int) -> void:
-	animate(difference)
-	if shouldEmitBubble: emitBubble(difference)
+	if shouldEmitBubble:	emitBubble(difference)
+	if shouldTint:			updateTint() # Always update tint in case we just got healed.
+
+#endregion
 
 
-## @experimental
-func animate(difference: int) -> void:
-	if difference < 0:
-		Animations.blink(nodeToAnimate, self.blinkCount, self.blinkDuration, true) # initialVisibility, to avoid ending up invisible after the animation finishes
-
-	updateTint() # Always update tint in case we just got healed.
-
+#region Effects
 
 ## @experimental
 func updateTint()-> void:
 	if self.shouldTint and healthComponent:
-		var health: Stat  = healthComponent.health
-		var red:	float = (1.0 - health.percentNormalized) * 5.0 # Increase redness as health gets lower
-		var targetModulate:  Color = nodeToAnimate.modulate
-		targetModulate.r = red
-		if debugMode: Debug.printVariables([health.logName, red, targetModulate])
-		Animations.tweenProperty(nodeToAnimate, ^"modulate", targetModulate, 0.1)
+		if tintTween: tintTween.kill()
+		if debugMode: Debug.printVariables([healthComponent.health.logName, modulateBeforeTint.lerp(Color(Color.RED, modulateBeforeTint.a), 1.0 - healthComponent.health.percentNormalized)])
+		tintTween = Animations.tweenProperty(nodeToAnimate, ^"modulate", modulateBeforeTint.lerp(Color(Color.RED, modulateBeforeTint.a), 1.0 - healthComponent.health.percentNormalized), 0.1)
 
 
 func emitBubble(difference: int) -> void:
-	var text: String = str(healthComponent.health.value) if shouldShowRemainingHealth else "%+d" % difference
-
-	var color: Color = Color(0, 1, 0) if difference > 0 else Color(1, 0.5, 0)
-	color.b += [0, +0.1, +0.2, +0.3].pick_random()
-
-	if not detachedBubbles:
-		# NOTE: Emit the bubble from the ENTITY, so it's not affected by the effects on `nodeToAnimate`.
-		TextBubble.create(text, self.entity) \
-			.label.label_settings.font_color = color
+	# Emit the bubble from the entity so it isn't affected by effects on `nodeToAnimate`
+	# not appendDisplayName, not colorBubble
+	var bubble: GameplayResourceBubble
+	if shouldShowRemainingHealth:
+		bubble = GameplayResourceBubble.createForStat(
+			healthComponent.health,
+			entity if not detachedBubbles else entity.get_parent(),
+			self.bubbleOffset,
+			false, false)
 	else:
-		TextBubble.create(text, entity.get_parent(), entity.global_position) \
-			.label.label_settings.font_color = color
+		bubble = GameplayResourceBubble.createForStatChange(
+			healthComponent.health,
+			entity if not detachedBubbles else entity.get_parent(),
+			self.bubbleOffset,
+			false, false)
+	if detachedBubbles: bubble.global_position = entity.to_global(self.bubbleOffset) # Apply offset separately for detached bubbles to preserve transforms etc.
+	bubble.ui.label.label_settings.font_color  = self.bubbleColorPositive if difference > 0 else self.bubbleColorNegative
+
+#endregion

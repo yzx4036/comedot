@@ -1,4 +1,5 @@
 ## Comedot Project Settings
+## By default saved as `ComedotProjectSettings.tres` in the Godot project's root folder.
 ## IMPORTANT: These are NOT Godot's project settings like [ProjectSettings],
 ## and generally not exposed to the player or modifiable during gameplay runtime.
 ## INFO: These settings are set at DEVELOPMENT-TIME and  apply to Comedot AutoLoads, the Components Dock, Debugging/Logging,
@@ -31,16 +32,15 @@ const projectSettingsResourcePathDefault: String = "res://ComedotProjectSettings
 ## The path of the main scene of your game to launch when the player chooses "Start" on the Main Menu.
 ## If omitted, then [member Settings.mainGameScenePath] remains unmodified.
 ## This is not a [PackedScene] Resource to avoid circular references or load()ing before it is needed.
-@export_file("*.tscn") var mainGameScenePath: String
+@export_file("*.tscn") var mainGameScenePath:	String
 
-## Appends entries to [member GameState.globalData], a [Dictionary] of values that may be accessed and modified by multiple nodes/scripts in the scene tree at any time.
-## ALERT: Entries with identical keys already in [member GameState.globalData] will be OVERWRITTEN!
-## TIP: [StringName] may be the optimal type to use for keys.
-@export var initialGlobalData: Dictionary[Variant, Variant] = {} # TBD: Allow only StringName keys?
+## The path of a [GlobalData] `.tres` [Resource] file to load into [member GameState.globalData]
+## If the path is empty or invalid, a new empty [member GameState.globalData] is created.
+@export_file("*.tres") var globalDataPath:		String = "res://Resources/GlobalData.tres"
 
 ## A list of scenes to add as child nodes of the [GameState].gd AutoLoad.
 ## @experimental
-@export_file_path("*.tscn") var gameStateNodes: PackedStringArray
+@export_file_path("*.tscn") var gameStateNodes:	PackedStringArray
 
 #endregion
 
@@ -49,16 +49,16 @@ const projectSettingsResourcePathDefault: String = "res://ComedotProjectSettings
 @export_category("Music")
 
 ## The path of the folder from which to load ".mp3" music files to build a playlist.
-@export_dir var musicFolder: String = "res://Assets/Music"
+@export_dir var musicFolder:					String = "res://Assets/Music"
 
 ## Overrides [member musicIndexToPlayOnStart]
 @export_file("*.mp3") var musicFileToPlayOnStart: String
 
 ## If [member musicFileToPlayOnStart] is unspecified, then a random song is played from the list of files found in [member musicFolder]
-@export var shouldPlayRandomMusicOnStart: bool = true
+@export var shouldPlayRandomMusicOnStart:		bool = true
 
 ## If [member musicFileToPlayOnStart] is unspecified and [member shouldPlayRandomMusicOnStart] is `false`, then this is the index of the first song from the list of files found in [member musicFolder]
-@export var musicIndexToPlayOnStart: int
+@export var musicIndexToPlayOnStart:			int
 
 #endregion
 
@@ -75,6 +75,23 @@ const turnBasedMinimumDelay: float = 0.05
 ## WARNING: If disabled, turn-based nodes and scripts may cause a crash.
 @export_custom(PROPERTY_HINT_GROUP_ENABLE, "") var isTurnBasedGame: bool = false
 
+## Enables or disables [member turnBasedDelayBetweenEntities]
+## If [member turnBasedShouldWaitAfterLastEntity] is `true` then this delay applies even if there is only 1 entity.
+@export var turnBasedShouldWaitBetweenEntities: bool = true:
+	set(newValue):
+		if newValue != turnBasedShouldWaitBetweenEntities:
+			turnBasedShouldWaitBetweenEntities = newValue
+			if TurnBasedCoordinator: TurnBasedCoordinator.shouldWaitBetweenEntities = newValue
+
+## If `true` then  [member turnBasedDelayBetweenEntities] seconds also occurs after the last entity in each Begin/Execute/End phase.
+## If there is only 1 entity, this ensures a delay between multiple moves of the same entity.
+## If `false` (default) the delay is skipped after the last entity or if there is only 1 entity.
+@export var turnBasedShouldWaitAfterLastEntity: bool:
+	set(newValue):
+		if newValue != turnBasedShouldWaitAfterLastEntity:
+			turnBasedShouldWaitAfterLastEntity = newValue
+			if TurnBasedCoordinator: TurnBasedCoordinator.shouldWaitAfterLastEntity = newValue
+
 ## The delay after processing each [TurnBasedEntity] PER PHASE (Begin/Execute/End). May be used for aesthetics or debugging.
 ## NOTE: This delay also occurs even AFTER the LAST entity in the order, even if there is only 1 entity!
 ## This ensures a delay between multiple moves of the same entity.
@@ -85,13 +102,13 @@ const turnBasedMinimumDelay: float = 0.05
 			if TurnBasedCoordinator: TurnBasedCoordinator.delayBetweenEntities = newValue
 
 ## Enables or disables [member turnBasedDelayBetweenStates]
-@export var shouldWaitBetweenTurnStates:  bool = true:
+@export var turnBasedShouldWaitBetweenStates:  bool = true:
 	set(newValue):
-		if newValue != shouldWaitBetweenTurnStates:
-			shouldWaitBetweenTurnStates = newValue
+		if newValue != turnBasedShouldWaitBetweenStates:
+			turnBasedShouldWaitBetweenStates = newValue
 			if TurnBasedCoordinator: TurnBasedCoordinator.shouldWaitBetweenStates = newValue
 
-## The delay after each turn state if [member shouldWaitBetweenTurnStates]: Begin → Execute → End. May be used for aesthetics or debugging.
+## The delay after each turn state if [member turnBasedShouldWaitBetweenStates]: Begin → Execute → End. May be used for aesthetics or debugging.
 ## NOTE: The delay will occur BEFORE [member TurnBasedCoordinator.stateMachine] transitions to the next state.
 ## NOTE: This delay also occurs even AFTER the "End" phase! This ensures a delay between the end of the previous turn and the beginning of the next turn.
 @export_range(turnBasedMinimumDelay, 10, 0.05) var turnBasedDelayBetweenStates: float = 0.25:

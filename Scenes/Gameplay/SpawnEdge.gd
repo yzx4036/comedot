@@ -4,7 +4,7 @@
 ## TIP: If this script is attached to a [CanvasLayer], the Spawners will stay fixed at the edges even as the player/camera moves and the map scrolls.
 ## TIP: Ideal for spawning enemies just outside the view in scrolling shoot-em-ups etc.
 ## IMPORTANT: To choose scenes to spawn and set other parameters, enable "Editable Children" to access all the underlying [Spawner] child nodes,
-## or use a subclass or other script to access the [member SpawnEdge.spawners] list, or control each `%N`, `%NArea` etc. node individually.
+## or use a subclass or other script to access the [member SpawnEdge.spawners] list, or control each `%PointX`, `%AreaX` etc. node individually.
 
 class_name SpawnEdge
 extends Node
@@ -22,7 +22,9 @@ extends Node
 ## The parent node to add the spawned nodes to.
 ## If `null` and this node is a [CanvasLayer], the [CanvasLayer]'s parent is used.
 ## ALERT: This sets the [member Spawner.parentOverride] of ALL the [SpawnPoint]s & [SpawnArea]s.
-@export var parentOverride: Node
+@export var parentOverride:	Node
+
+@export var debugMode:		bool
 
 #endregion
 
@@ -58,18 +60,18 @@ func _ready() -> void:
 ## NOTE: Does NOT rebuild [member spawners] in case a script wants to modify either list separately.
 func getAllSpawners() -> Array[Spawner]:
 	return [
-		%NW/Spawner, # Start in order from 0,0 clockwise
-		%N/Spawner,
-		%NE/Spawner,
-		%E/Spawner,
-		%SE/Spawner,
-		%S/Spawner,
-		%SW/Spawner,
-		%W/Spawner,
-		%NArea/Spawner,
-		%EArea/Spawner,
-		%SArea/Spawner,
-		%WArea/Spawner,
+		%PointNW/Spawner, # Start in order from 0,0 clockwise
+		%PointN/Spawner,
+		%PointNE/Spawner,
+		%PointE/Spawner,
+		%PointSE/Spawner,
+		%PointS/Spawner,
+		%PointSW/Spawner,
+		%PointW/Spawner,
+		%AreaN/Spawner,
+		%AreaE/Spawner,
+		%AreaS/Spawner,
+		%AreaW/Spawner,
 		]
 
 
@@ -80,6 +82,7 @@ func setSpawnerParents() -> void:
 		spawnParent = self.get_parent()
 
 	if not spawnParent: return
+	if debugMode: Debug.printDebug(str("setSpawnerParents(): ", spawnParent), self)
 
 	for spawner: Spawner in self.spawners:
 		spawner.parentOverride = spawner.get_path_to(spawnParent)
@@ -97,14 +100,18 @@ func setSpawnerPlacements() -> void:
 	var screenMid:		Vector2	= viewportRect.position	+ (viewportRect.size / 2.0)
 
 	# Spawn Points
-	%NW.position = pointsContainer.make_canvas_position_local(Vector2(screenMin.x, screenMin.y))
-	%N.position  = pointsContainer.make_canvas_position_local(Vector2(screenMid.x, screenMin.y))
-	%NE.position = pointsContainer.make_canvas_position_local(Vector2(screenMax.x, screenMin.y))
-	%E.position  = pointsContainer.make_canvas_position_local(Vector2(screenMax.x, screenMid.y))
-	%SE.position = pointsContainer.make_canvas_position_local(Vector2(screenMax.x, screenMax.y))
-	%S.position  = pointsContainer.make_canvas_position_local(Vector2(screenMid.x, screenMax.y))
-	%SW.position = pointsContainer.make_canvas_position_local(Vector2(screenMin.x, screenMax.y))
-	%W.position  = pointsContainer.make_canvas_position_local(Vector2(screenMin.x, screenMid.y))
+	%PointNW.position = pointsContainer.make_canvas_position_local(Vector2(screenMin.x, screenMin.y))
+	%PointN.position  = pointsContainer.make_canvas_position_local(Vector2(screenMid.x, screenMin.y))
+	%PointNE.position = pointsContainer.make_canvas_position_local(Vector2(screenMax.x, screenMin.y))
+	%PointE.position  = pointsContainer.make_canvas_position_local(Vector2(screenMax.x, screenMid.y))
+	%PointSE.position = pointsContainer.make_canvas_position_local(Vector2(screenMax.x, screenMax.y))
+	%PointS.position  = pointsContainer.make_canvas_position_local(Vector2(screenMid.x, screenMax.y))
+	%PointSW.position = pointsContainer.make_canvas_position_local(Vector2(screenMin.x, screenMax.y))
+	%PointW.position  = pointsContainer.make_canvas_position_local(Vector2(screenMin.x, screenMid.y))
+
+	if debugMode:
+		for point: SpawnPoint in pointsContainer.get_children():
+			Debug.printDebug(str("setSpawnerPlacements() ", point.name, " position: ", point.position), self)
 
 	# Spawn Areas
 	var northAreaSize:	Vector2	= Vector2(viewportRect.size.x + screenPadding.x * 2.0, self.areaThickness)
@@ -112,10 +119,12 @@ func setSpawnerPlacements() -> void:
 	var southAreaSize:	Vector2	= Vector2(viewportRect.size.x + screenPadding.x * 2.0, self.areaThickness)
 	var westAreaSize:	Vector2	= Vector2(self.areaThickness, viewportRect.size.y + screenPadding.y * 2.0)
 
-	setAreaBounds(%NArea, Vector2(screenMin.x, screenMin.y - northAreaSize.y), northAreaSize)
-	setAreaBounds(%EArea, Vector2(screenMax.x, screenMin.y), eastAreaSize)
-	setAreaBounds(%SArea, Vector2(screenMin.x, screenMax.y), southAreaSize)
-	setAreaBounds(%WArea, Vector2(screenMin.x - westAreaSize.x, screenMin.y),  westAreaSize)
+	setAreaBounds(%AreaN, Vector2(screenMin.x, screenMin.y - northAreaSize.y), northAreaSize)
+	setAreaBounds(%AreaE, Vector2(screenMax.x, screenMin.y), eastAreaSize)
+	setAreaBounds(%AreaS, Vector2(screenMin.x, screenMax.y), southAreaSize)
+	setAreaBounds(%AreaW, Vector2(screenMin.x - westAreaSize.x, screenMin.y),  westAreaSize)
+
+	# setAreaBounds() will log debug info
 
 
 func setAreaBounds(spawnArea: SpawnArea, viewportPosition: Vector2, size: Vector2) -> void:
@@ -128,5 +137,10 @@ func setAreaBounds(spawnArea: SpawnArea, viewportPosition: Vector2, size: Vector
 	var rectangleShape: RectangleShape2D = spawnArea.spawnAreaShape.shape
 	rectangleShape.size = size
 	spawnArea.spawnAreaShape.position = size / 2.0
+
+	if debugMode:
+		Debug.printDebug(str("setAreaBounds() ", spawnArea.name, \
+			" @", spawnArea.position, \
+			" region: ", Rect2(spawnArea.position, spawnArea.spawnAreaShape.shape.size)), self)
 
 #endregion

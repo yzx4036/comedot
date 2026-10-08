@@ -1,6 +1,6 @@
 ## A basic "state machine" implemented as a list of [StringName]s representing any kind of state in any subsystem,
-## where each state also contains a list of other states it is allowed to transition to,
-## effectively creating a transition graph or flow chart.
+## where each state also contains a list of other states it is allowed to transition to, effectively creating a transition graph or flow chart.
+## TIP: See [TimedStateMachine] for adding [Timer] delays between transitions.
 
 class_name StateMachine
 extends Resource
@@ -26,7 +26,7 @@ extends Resource
 @export_storage var currentState: StringName:
 	set(newValue):
 		if newValue != currentState:
-			if not isEnabled: 
+			if not isEnabled:
 				if debugMode: Debug.printChange("currentState not isEnabled, rejected", currentState, newValue)
 				return
 
@@ -54,6 +54,15 @@ extends Resource
 
 			shouldSkipNextValidationForStateSetter = false
 
+## A [Dictionary] where the key is the [StringName] of a state,
+## and the value is a [Callable] function to call AFTER this state machine enters the specified state.
+## IMPORTANT: The [Callable] must NOT be `async` and callable without arguments; use [method Callable.bind] to permanently assign arguments.
+## NOTE: Called AFTER [signal didTransition]
+## WARNING: This only allows 1 Callable per state: Use [method Dictionary.has] to check existing values before overwriting!
+## TIP: For multiple callbacks per state, use [signal didTransition]
+## ALERT: This property is RUNTIME-ONLY and NOT saved in the [Resource] `.tres` file on persistent storage.
+var functionsToCallAfterTransition: Dictionary[StringName, Callable] # TBD: ALlow multiple callbacks per state?
+
 ## Skips the call to [method validateTransition] when modifying [member currentState]
 ## PERFORMANCE: Used by [method transitionToState] to avoid a second redundant call.
 ## ALERT: FOR INTERNAL USE ONLY!
@@ -68,15 +77,14 @@ var logName: String:
 #region Signals
 signal didRejectTransition(sourceState:	 StringName, rejectedState:	StringName)
 signal willTransition(outgoingState:	 StringName, incomingState:	StringName)
-signal didTransition(previousState:		 StringName, newState:		StringName)
+signal didTransition(previousState:		 StringName, newState:		StringName) ## NOTE: This signal is emitted BEFORE [member functionsToCallAfterTransition]
 #endregion
-
 
 
 #region Interface
 
 ## Resets [member currentState] to [member initialState] if any, otherwise to the first state from [member states]
-## If there is no valid state available, [member currentState] is cleared to an empty string. 
+## If there is no valid state available, [member currentState] is cleared to an empty string.
 func resetState() -> void:
 	shouldSkipNextValidationForStateSetter = true ## TBD: Should resets bypass transition validation?
 	if validateState(initialState): currentState = initialState
@@ -110,7 +118,7 @@ func getNextStates(sourceState: StringName = self.currentState) -> PackedStringA
 ## Checks to ensure [param sourceState] → [param requestedState] is a valid transition,
 ## then calls [method overrideTransition] which may be implemented by subclasses to add further conditions.
 func validateTransition(sourceState: StringName, requestedState: StringName) -> bool:
-	if debugMode: printLog("validateTransition(): " + sourceState + " → " + requestedState)
+	if debugMode: Debug.printResourceLog("validateTransition(): " + sourceState + " → " + requestedState, logName)
 
 	if sourceState == requestedState: return true
 
@@ -118,25 +126,27 @@ func validateTransition(sourceState: StringName, requestedState: StringName) -> 
 		Debug.printWarning("validateTransition() Missing source state: &\"" + sourceState + "\" → &\"" + requestedState + "\"", logName)
 		return false
 
-	if not states.has(requestedState): 
+	if not states.has(requestedState):
 		Debug.printWarning("validateTransition(): &\"" + sourceState + "\" → Missing next state: &\"" + requestedState + "\"", logName)
 		return false
-	
-	if not getNextStates(sourceState).has(requestedState): 
+
+	if not getNextStates(sourceState).has(requestedState):
 		Debug.printWarning("validateTransition(): &\"" + sourceState + "\" → Requested state not in allowed transitions: &\"" + requestedState + "\"", logName)
 		return false
 
 	if overrideTransition(sourceState, requestedState):
 		return true
 	else:
-		printLog("validateTransition() rejected by overrideTransition(): &\"" + sourceState + "\" → &\"" + requestedState + "\"") # Game-specific rejections don't warrant an automatic warning
+		if debugMode: Debug.printResourceLog("validateTransition() rejected by overrideTransition(): &\"" + sourceState + "\" → &\"" + requestedState + "\"", logName) # Game-specific rejections don't warrant an automatic warning
 		return false
 
 
 func transitionToState(nextState: StringName) -> bool:
-	if debugMode: printLog(str("transitionToState(): &\"" + self.currentState + "\" → &\"" + nextState + "\" isEnabled: ", isEnabled))
+	if debugMode: Debug.printResourceLog(str("transitionToState() requested: &\"" + self.currentState + "\" → &\"" + nextState + "\" isEnabled: ", isEnabled), logName)
 
 	if nextState == self.currentState: return true # If we're already in the requested state, we already succeeded!
+
+	# TBD: Save `outgoingState = self.currentState` in case it gets mutated by validateTransition() or allow that kind of hackery?
 
 	if not isEnabled or not validateTransition(self.currentState, nextState):
 		didRejectTransition.emit(self.currentState, nextState)
@@ -145,13 +155,44 @@ func transitionToState(nextState: StringName) -> bool:
 	var previousState: StringName = self.currentState # JIC: Capture `currentState` in case `willTransition` handlers modify it
 	willTransition.emit(previousState, nextState)
 	# TBD: Add a veto/rejection hook here for signal handlers?
-	
+
 	shouldSkipNextValidationForStateSetter = true  # PERFORMANCE: `currentState` property setter calls validateTransition() too, so skip this redundant call!
 	self.currentState = nextState
 	shouldSkipNextValidationForStateSetter = false # JIC: `currentState` setter resets it, but let's do it again to be sure :')
-	
+
 	didTransition.emit(previousState, self.currentState)
+
+	# ALERT: ALLOWED: `currentState` may have been mutated by `didTransition` handlers for complex game-specific behavior or "hacks"; that's OK.
+	if self.currentState != nextState:
+		if debugMode: Debug.printResourceLog("transitionToState() currentState: &\"" + currentState + "\" != nextState argument: &\"" + nextState + "\" ・ Modified by `didTransition` handlers? Skipping `functionsToCallAfterTransition` for &\"" + nextState + "\"", logName)
+		# IMPORTANT: But do NOT callFunctionsAfterTransition() for a state that is not the `currentState`!
+		return true # DESIGN: The original transition request was a success even if the state changed later
+
+	if self.functionsToCallAfterTransition.has(self.currentState):
+		callFunctionsAfterTransition(self.currentState)
+
 	return true
+
+
+## Calls the [Callable] in [member functionsToCallAfterTransition] if that [Dictionary] contains a key matching the [param state] name.
+## Returns the value returned from the [Callable]
+## ALERT: Returns `null` if the call fails, which may be indistinguishable from a valid [Callable] returning null; use [method Dictionary.has] & [method Callable.is_valid] etc. to check validity.
+func callFunctionsAfterTransition(state: StringName, cancelIfNotCurrentState: bool = true) -> Variant:
+	if not functionsToCallAfterTransition.has(state): return null
+	
+	if cancelIfNotCurrentState and self.currentState != state:
+		if debugMode: Debug.printResourceLog(str("callFunctionsAfterTransition() cancelIfNotCurrentState: currentState: &\"" + currentState + "\" != state argument: &\"" + state + "\""), logName)
+		return null
+
+	var functionToCall:	Callable = functionsToCallAfterTransition[state]
+	var returnValue:	Variant  = null
+	
+	if functionToCall is Callable and functionToCall.is_valid():
+		if debugMode: Debug.printResourceLog(str("callFunctionsAfterTransition() &\"" + state + "\" calling: ", functionToCall), logName)
+		returnValue = functionToCall.call()
+		if debugMode: Debug.printResourceLog(str("callFunctionsAfterTransition(): ", functionToCall, " → ", returnValue), logName)
+
+	return returnValue
 
 #endregion
 
@@ -162,13 +203,7 @@ func transitionToState(nextState: StringName) -> bool:
 ## May be implemented in subclasses to add extra dynamic conditions between state transitions or reject transitions.
 ## IMPORTANT: Subclasses MUST check [member isEnabled]
 func overrideTransition(sourceState: StringName, requestedState: StringName) -> bool:
-	if debugMode: printLog("overrideTransition(): &\"" + sourceState + "\" → &\"" + requestedState + "\"")
+	if debugMode: Debug.printResourceLog("overrideTransition(): &\"" + sourceState + "\" → &\"" + requestedState + "\"", logName)
 	return isEnabled
 
-#endregion
-
-
-#region Debugging
-func printLog(message: String) -> void:
-	if debugMode: Debug.printResourceLog(message, self.logName)
 #endregion

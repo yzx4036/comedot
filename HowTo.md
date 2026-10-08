@@ -18,9 +18,7 @@ Create a separate copy of the entire Comedot project folder for each of your gam
 
 1. Create a new git branch for your game (say `game-of-the-year-2069`) in your local Comedot repository, and
 
-2. Make subfolders for your game in the existing folder structure like `/Scenes/YourGame/` or `/YourGame/etc/` to organize your own files separately from the framework and avoid accidental conflicts.
-
-💡 _You could also use a single `/Comedot/Game/` subfolder for multiple game projects: Create a new git repository in the `/Game/` subfolder, and use multiple git branches for each game. This may help with experimenting on different ideas while keeping the Comedot framework separate, so that any updates or modifications to the framework can be easily shared between all your games._
+2. Keep your game-specific files in the existing folder structure like `/Scenes/` or use a "master" folder for your game like `/YourGame/etc/` to organize your own files separately from the framework and avoid accidental conflicts.
 
 ❗️ Configure `res://ComedotProjectSettings.tres` to setup the Comedot framework environment such as the main game scene, music options, turn-based mode, and debug flags.
 
@@ -73,7 +71,7 @@ Create a separate copy of the entire Comedot project folder for each of your gam
 
 3. Add `/Components/Physics/CharacterBodyComponent.tscn` after the above components in the Entity's tree. This component takes the velocity updates from other components and applies them to the Entity's `CharacterBody2D`
 
-4. Add `/Components/Control/InputComponent.tscn`, which processes player/AI input and shares it with other components. The order of this component must be below other components, because input events propogate upwards through the scene tree.
+4. Add `/Components/Control/InputComponent.tscn`, which processes player/AI input and shares it with other components. The order of this component must be below other components, because input events propagate upwards through the scene tree.
 
 
 # 🧩 Add Components to Entities
@@ -102,6 +100,26 @@ _Most components require their Scene file, not just the Script, because they may
 ❕ _Remember to set the correct Physics Collision Layers and Masks for all bodies/areas, otherwise they won't be able to detect collisions with each other._
 
 💡 _See also: `HealthVisualComponent` + `InvulnerabilityOnHitComponent` etc._
+
+### 🔫 Forge New Weapons
+
+When you need to create a new type of projectile weapon for the player or enemies:
+
+1. Make a duplicate copy of the entire `/Templates/Weapon/` folder, e.g. to `/Game/Weapons/Laser/`
+
+2. Replace the word `Template` in the new filenames with the weapon's name, e.g. `LaserGunComponent.tscn` etc.
+
+3. Set `LaserGunComponent.tscn` "Bullet Template" → `LaserBullet.tscn`
+
+4. Set `LaserGunComponent.tscn/CooldownTimer` "Cooldown Modifier" → `LaserGunCooldown.tres`
+
+5. Set `LaserBullet.tscn/DamageComponent` "Damage Modifier" → `LaserBulletDamage.tres`
+
+6. Customize the new `LaserBullet.tscn` to change its sprite, speed, hitbox, particles etc.
+
+7. Edit `LaserBulletDamage.tres` and `LaserGunCooldown.tres` to update the `Stat` names and values. Set "Local to Scene" or use "Make Unique" to disable global updates for Resource instances.
+
+❗️ Perform all file operations via the Godot FileSystem Dock to ensure UIDs and internal references are updated.
 
 
 # ⚡️ Customization

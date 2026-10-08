@@ -1,16 +1,12 @@
 # AGENTS.md
 # Guidelines for the Comedot Project and Repository
 
-Search this file for section headers starting with `##` to quickly find instructions related to a specific category of tasks.
-
-Each section contains instructions or information starting with a `-` bullet list marker, with further related information as nested & indented bullets.
-
 
 ## Project Overview
 - This project is a template for the Godot game engine.
 - It's a component-based framework similar to ECS for making 2D games.
 - It's open-source and hosted at https://github.com/InvadingOctopus/comedot
-- For details, see `/README.md`
+- For more details, see `/README.md`
 
 
 ## Folder Structure & Module Organization
@@ -26,7 +22,7 @@ Each section contains instructions or information starting with a `-` bullet lis
 - `/Notes/`: Design documents, indexes/catalogs of entities/components/scripts, and other development notes. When looking for a component or script to use for a task, search these `*Catalog.md` files.
 - `/Temporary/`, `/Lab/`: Transient experiments. All files in these folders should always be ignored. Disregard any errors or warnings in files in those folders. If an untracked file in these folders prevents compilation/parsing/export, exclude that file or consider temporarily removing it.
 - `/Scripts/Tools/Tools.gd`, `*Tools.gd`: Files containing global static standalone helper functions for builtin Godot nodes & types. This is a workaround for the inability to extend builtin Godot types with custom methods without using subclasses.
-- `/Game/`: Game-specific files that are NOT part of the Comedot framework itself. These files should be ignored when referring to the framework, and only accessed when considering an actual game being made with Comedot. Everything outside the `/Game/` subtree is part of the framework that is shared between multiple games. When generating code for a game, only the files in the `/Game/` subtree should be modified. `/Game/AGENTS.override.md` takes precedence for any activity inside the `/Game/` subtree.
+- `/Game/`: Game-specific files that are NOT part of the Comedot framework itself. These files should be ignored when referring to the framework, and only accessed when considering an actual game being made with Comedot. If there is a `/Game/AGENTS.override.md` file, it takes precedence for any instructions related to the specific game.
 
 
 ## Subsystems
@@ -61,14 +57,13 @@ Each section contains instructions or information starting with a `-` bullet lis
 - Ignore the contents of `/Temporary/` and `/Lab/`
 - Functions and types marked with an `@experimental` comment are expected to have bugs and incomplete implementations. Findings involving experimental code should be a lower priority and not expected to be fixed, unless important non-experimental code depends on that experimental code.
 - Not all `null`-able references need to be guarded: In some cases, a crash is better than a warning or a silent failure/skip, specially if it's a core object which should never be missing at runtime under normal circumstances.
-- Ignore the contents of `/Game/` unless the prompt and context involves a specific game being made with the main framework project.
-- The contents of `/Game/` are subject to the instructions in `/Game/AGENTS.override.md`
+- Ignore the contents of `/Game/` unless the prompt and context involves a specific game being made with the framework.
 - If an inline source code renderer does not support syntax highlighting for GDScript, use Swift syntax highlighting for fenced GDScript code blocks, as it closely resembles GDScript highlighting.
 
 
-## Coding Style & Naming Conventions
+## Coding Style & Conventions
 Follow the guidelines in `/Conventions.md`, which includes these key rules:
-- Tabs, not spaces; GDScript is indentation-sensitive.
+- Use tabs for indentation, not spaces.
 - Prefer camelCase for everything, including constants; avoid underscores except in rare cases.
 - Types (class names, enums) are Capitalized.
 - Two empty lines between major code sections or different "categories" (functions, properties, signals, regions).
@@ -76,6 +71,8 @@ Follow the guidelines in `/Conventions.md`, which includes these key rules:
 - Function/method names should be imperative verbs wherever it makes grammatical sense: `doSomething()`, `checkRequirements()`
 - Signal handlers should be named as `on[Emitter]_[signal]`
 - Prefer strong static typing: Write out explicit types, e.g. `var number: int = 42` instead of `var number := 42`, but `:=` may be used where the type isn't certain at coding time.
+- Documentation comments don't need to be overly verbose or cover every detail; the exact code is always available for inspection so comments only have to succinctly mention the general behavior of a class or function etc. along with any exceptional gotchas.
+- Omit periods for short comments or comments ending with names of types/functions/etc.
 - If instructions conflict or drift, `/Conventions.md` takes precedence and includes exceptions for some rules. In case of ambiguity, match existing patterns.
 - There is no automated formatter configured; match existing style manually.
 
@@ -102,6 +99,7 @@ Follow the guidelines in `/Conventions.md`, which includes these key rules:
 - Scripts that extend specific Godot builtin nodes types for a specific purpose or a simple effect do not have to be entities or components, such as `SpawnArea.gd` for `Area2D`,  or `Spin.gd` for any `Node2D`, or UI scripts such as `StatUI.gd` and `StatBar.gd` that are meant for `Control` nodes.
 - Filenames should be clear and precise. Add suffixes like `Entity` and `Component` to assist referencing and searching etc. Entities should be named like `MonsterEntity.gd` and components should be named like `MonsterAttackComponent.gd`. There may be exceptions for brevity for certain resources such as `Health.gd` instead of `HealthStat.gd` unless there is ambiguity. Standalone scripts that are not for an entity or component, such be named as a verb describing the action if applicable, like `Spin.gd` and `SnapToMouse.gd`. Filenames don't have to be short, for example `TurnBasedTileBasedPlatformerControlComponent`
 - For logging, call `Debug.gd` functions such as `printLog()` etc. Use `Debug.printWarning()` instead of `push_warning()` and `Debug.printError()` instead of `push_error()`
+- Do not worry about breaking compatibility; this framework does not guarantee backwards compatibility.
 - When asked to make changes to code that is not a test or experiment, also add comments to explain the logic if the code isn't simple and self-explanatory.
 
 
@@ -113,15 +111,17 @@ Follow the guidelines in `/Conventions.md`, which includes these key rules:
 
 ## Commit & Pull Request Guidelines
 - Commit messages should have a title that is short and imperative like `Add TurnBasedLab` or `Fix TurnBasedStateUIComponent`, referencing the file/class/type/issue.
-- Do not mix parent framework and `/Game/` commits.
+- Do not mix shared framework and game-specific code/assets in the same commit.
 
-- The commit message content should be a bullet list, using this notation for the bullet symbols:
+- A commit message is optional when the commit title alone is insufficient.
+- Commit message content should be a bullet list using this notation:
 	* Asterisk for changes that are not explicit additions of new features or removals of previous features, such as renames.
 	+ A plus sign for additions of new properties/methods added to a class/type/file.
 	- A minus sign for removal of properties/methods deleted from a class/type/file.
 	! An exclamation sign for high impact fixes or the most important changes in the commit.
 	? A question mark for some comments such as possible bugs, uncertain behavior, "TBD" (To Be Decided) remarks, etc.
 	! TODO: An exclamation sign + `TODO:` etc. for updating dependents etc. affected by this commit, to be included in the following next commits, especially if this commit leaves the project in a broken state.
+	& An ampersand for additional "side effects" related to the main commit topic, such as updating dependents and tests etc.
 
 For PRs:
 - The submitter should describe the gameplay impact and affected components/scenes.

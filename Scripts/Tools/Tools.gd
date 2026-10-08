@@ -1,7 +1,7 @@
 ## Helper functions for built-in Godot nodes and types to assist with common tasks.
 ## Most of this is stuff that should be built-in Godot but isn't :')
 ## and can't be injected into the base types such as Node etc. because GDScript doesn't have a feature like Swift's "extension" :(
-## In the future, these functions & types may be incorporated into the builtin Godot API as native code or via custom extensions.
+## In future Godot versions these functions & types may be incorporated into the builtin API as native code or via custom extensions.
 
 class_name Tools
 extends GDScript
@@ -430,7 +430,7 @@ static func validateArrayIndex(array: Array, index: int) -> bool:
 ## Returns 0 if the array is empty, which will be an invalid index.
 ## NOTE: Packed arrays such as [PackedStringArray] etc. are accepted even though [param array] is typed as [Array]
 static func wrapArrayIndex(array: Array, index: int, increment: int) -> int:
-	if not array.is_empty(): return wrapi(0, index + increment, array.size()) # max is exclusive
+	if not array.is_empty(): return wrapi(index + increment, 0, array.size()) # max is exclusive
 	else: return 0
 
 

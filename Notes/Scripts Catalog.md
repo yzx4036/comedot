@@ -6,19 +6,20 @@ An index of reusable Comedot scripts that are not Components or Entities. Includ
 ## AutoLoads
 
 * Debug: AutoLoad for debug output, log UI, watched values, and chart helpers.
-* GameState: AutoLoad for global game state and event-bus signals. Intended for campaign/gameplay state, not player settings.
+* GameState: AutoLoad for global game state, shared GlobalData key-value storage, player registration, save/load helpers, gameplay randomness, and event-bus signals. Intended for campaign/gameplay state, not player settings.
 * Global: AutoLoad for framework-wide constants, flags, node groups, custom data keys, helper methods, and shared framework state.
 * GlobalInput: AutoLoad for input action names, labels, and global keyboard shortcuts.
 * GlobalSonic: AutoLoad scene for music, sound effects, and script-generated beeps that should outlive normal gameplay nodes.
 * GlobalUI: AutoLoad scene for always-present overlays, pause visuals, transitions, and other UI above game content.
-* SceneManager: AutoLoad that manages scene changes through a navigation stack and transition flow.
+* SceneManager: AutoLoad that manages scene changes through a navigation stack and transition flow, and stores nodes registered by RegisterGlobalNodeName for convenient global lookup.
 * Settings: AutoLoad for user settings persisted to a configuration file, including dynamically accessed setting keys.
 * TurnBasedCoordinator: AutoLoad that coordinates TurnBasedEntity turn order and begin, execute, and end phases.
 
 
 ## Data Scripts
 
-* GlobalName: Registers a node in GameState.globalData using a camelCase version of the node name.
+* ApplyGlobalData: Node script that binds GameState.globalData keys to NodePath properties, applies existing values after scene setup, and reapplies them when GlobalData emits changes.
+* RegisterGlobalNodeName: Registers a node in SceneManager.globalNodeNames under its camelCase node name and removes that registration when the node exits the tree.
 * TileMapLayerWithCellData: TileMapLayer subclass that owns TileMapCellData for runtime per-cell metadata.
 
 
@@ -33,10 +34,11 @@ An index of reusable Comedot scripts that are not Components or Entities. Includ
 * GameOver: Node script that displays game-over UI and pauses gameplay when GameState.gameDidOver is emitted.
 * RandomPlaceholder: InstancePlaceholder subclass that loads or skips a placeholder at runtime based on chance.
 * ReplaceWithRandomScene: Node2D script that defers replacing itself with a scene chosen from a weighted path Dictionary, with fallback-path and completion-signal support.
-* Spawner: Reusable Node script that validates and instantiates a configured scene under a resolved parent, with optional spawning on ready, total/group limits, signals, and hooks for specialized subclasses. May also be attached to specialized Node types such as Timer.
-* SpawnerList: Spawner subclass that cycles through scene paths in sequential order, advancing and wrapping only after a successful spawn, and can spawn one full list cycle as a batch.
-* SpawnerRandom: Spawner subclass that rolls an overall spawn chance, then chooses a scene path from a weighted Dictionary.
-* SpawnerStack: Single-use Spawner subclass that pops scene paths from the end of a stack only after successful spawns, supports batch spawning, and disables itself when emptied.
+* Spawner: Reusable Node script that prepares, validates, and instantiates a configured scene under a resolved parent, with optional spawning on ready, total/group limits, reentrancy protection, extensible hooks, and explicit failure signaling. May also be attached to specialized Node types such as Timer.
+* SpawnerList: SpawnerSequenceBase subclass that cycles through scene paths in sequential order, advancing after successful spawns or optional empty-path skips, with wrapping and bounded batch spawning.
+* SpawnerRandom: Spawner subclass that rolls an overall spawn chance, then chooses a scene path from a weighted Dictionary during spawn setup.
+* SpawnerSequenceBase: Abstract Spawner base for scene-path sequences, providing a shared scenesList, validation, bounded batch spawning, and optional empty-path skips that can represent delays in timed waves.
+* SpawnerStack: SpawnerSequenceBase subclass that pops paths from the end after successful spawns or optional empty-path skips, emits didPopFinalPath when depleted, and remains enabled so its stack can be refilled.
 
 
 ## Payload Scripts
@@ -52,10 +54,11 @@ An index of reusable Comedot scripts that are not Components or Entities. Includ
 * CallablePayload: Payload Resource that calls a function or method.
 * Collection: Abstract Resource base for reusable item sequences, stacks, cycles, or random collections.
 * ColoredTextSequence: TextSequence variant that pairs text entries with colors for dialogue, signboards, or message sequences.
-* ComedotProjectSettings: Resource class for development-time Comedot configuration, including startup globals, music, turn-based timing, and debugging behavior.
+* ComedotProjectSettings: Resource class for development-time Comedot configuration, including the main scene, GlobalData resource, GameState child scenes, music, turn-based timing, and debugging behavior.
 * ComponentPayload: Payload Resource that creates or removes Components on a receiving Entity.
 * ComponentSet: Resource listing Component types for ComponentSwapperComponent and similar runtime component-set switching.
 * GameplayResourceBase: Abstract Resource base for gameplay concepts with identity, display name, description, and optional icon.
+* GlobalData: Shared Resource-backed StringName-to-Variant store for game-wide data, with property-style access and change/erase signals. Use ApplyGlobalData to bind keys to node properties.
 * GridDictionary: Resource-style coordinate dictionary for grid data keyed by Vector2i-style coordinates.
 * GunParameters: Parameter Resource for GunComponent values that are not tied to a specific gun node instance.
 * InventoryItem: Gameplay Resource representing an item carried in an InventoryComponent.
@@ -75,24 +78,27 @@ An index of reusable Comedot scripts that are not Components or Entities. Includ
 * StatWithModifiers: Experimental Stat variant that keeps a natural value plus stackable positive or negative modifiers.
 * TextSequence: Collection Resource for dialogue, tutorial, signboard, or other text sequences.
 * TileMapCellData: Runtime cell-data Resource for TileMapLayer cells, such as occupancy or destructible-cell state.
+* TimedStateMachine: StateMachine subclass that optionally delays transitions using a caller-provided Timer, with per-transition and default delays.
 * Upgrade: Gameplay Resource for permanent or repeatable upgrades, unlocks, costs, and upgrade-level effects.
 
 
 ## Scene Scripts
 
+* BubbleBase: Abstract base for temporary Node2D bubbles that animate upward and remove themselves. Use TextBubble or GameplayResourceBubble for concrete bubble scenes.
 * CollisionsArrayArea: Area2D that tracks contacted Area2Ds in an array. Use AreaContactComponent for Entity-based contact tracking.
 * CooldownTimer: Timer subclass for cooldowns with minimum duration, millisecond support, and dedicated cooldown start/finish helpers.
 * GameplayResourceBubble: Node2D visual bubble for GameplayResourceBase-derived resources such as Stat changes or loot pickups.
 * IOLogoScene: Launch logo scene script for the Invading Octopus logo.
 * Lightning: Experimental Node2D lightning flash effect.
 * MouseHoverArea: Area2D that shows highlight or hover effects when the mouse enters it.
-* OnScreenTrigger: VisibleOnScreenNotifier2D subclass that emits a trigger when it enters the viewport, with optional delay, use limits, and deletion after its final trigger.
+* OnScreenTrigger: VisibleOnScreenNotifier2D subclass that emits an immediate or delayed trigger on viewport entry, can cancel a pending delay on exit, and supports use limits and final-trigger deletion.
 * PlayerSpawnPosition: Marker2D that moves the configured player Entity to the marker on ready and can create a CameraComponent when missing to avoid an initial view jump.
 * PopulateArea: Experimental Area2D that fills a rectangular area with random copies of a scene.
 * SpawnArea: Area2D that positions spawns from its direct Spawner child at random points inside the area.
 * SpawnEdge: Positions eight SpawnPoints and four SpawnAreas around the viewport edges, coordinating their direct Spawner children with CanvasLayer support and shared spawn-parent overrides.
 * SpawnLocationTrigger: OnScreenTrigger subclass for map-positioned spawn or wave activation that can align newly spawned nodes with the trigger on selected canvas-space axes through Spawner.willAddSpawn.
 * SpawnPoint: Marker2D that positions spawns from its direct Spawner child at a fixed point.
+* SpawnWaveTrigger: SpawnLocationTrigger subclass that loads or appends a child SpawnerStack wave, optionally spawns its first item immediately, handles failures, and applies placeholder then axis-aligned placement.
 * TestMode: Development helper node that toggles selected nodes, debug flags, and test-only changes for a scene.
 * TextBubble: Floating text label effect with a static create helper for damage numbers, alerts, and short messages.
 
@@ -127,6 +133,7 @@ An index of reusable Comedot scripts that are not Components or Entities. Includ
 
 * AreaTools: Static helper functions for Area2D-related operations.
 * CollisionTools: Static helper functions for CollisionObject2D and CollisionShape2D operations.
+* EditorTools: Static helpers for selecting nodes and adding scene nodes through the Godot editor with undo/redo and optional editable-child setup.
 * FileSystemTools: Static helper functions for files and folders.
 * NodeTools: Static helper functions for Node and Node2D operations.
 * RectTools: Static helper functions for Rect2 and Rect2i operations.
@@ -181,7 +188,7 @@ An index of reusable Comedot scripts that are not Components or Entities. Includ
 * CopyShapeFromCollisionPolygon: Polygon2D script that copies its polygon from a CollisionPolygon2D.
 * CopyShapeFromPolygon: CollisionPolygon2D script that copies another polygon's shape.
 * CreateFlippedCopy: Node2D script that creates horizontal and/or vertical flipped copies of a node.
-* CreateSpriteFramesFromSheet: AnimatedSprite2D editor helper that builds SpriteFrames animations from a sprite sheet.
+* CreateSpriteFramesFromSheet: AnimatedSprite2D editor helper that builds SpriteFrames animations from a sprite sheet and assigns each generated animation a frame-count-based speed.
 * CycleColor: CanvasItem script that cycles HSV color channels over time, including Light2D color support.
 * DeleteParentWhenOffscreen: VisibleOnScreenNotifier2D script that queues the parent for deletion when offscreen.
 * FakeParallax: Experimental CanvasItem script that simulates simple horizontal parallax against another node.
@@ -197,5 +204,5 @@ An index of reusable Comedot scripts that are not Components or Entities. Includ
 * Spin: Node2D script that rotates the node every frame.
 
 
-Total listed: 146
-Generated by AI (Codex) on 2026-07-26
+Total listed: 153  
+Generated by AI (Codex) on 2026-08-15

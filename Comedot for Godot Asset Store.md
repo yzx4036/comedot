@@ -5,29 +5,37 @@ https://store.godotengine.org/asset/syntaks/comedot/
 
 ## Settings
 
-Asset Name: Comedot ECS Template
+Asset Name: Comedot
 
 Asset Summary:
-Entities, Components & Shit: ECS but without that "systems" crap. All-in-one project template & components framework for 2D games.
+All-in-one project template & component framework for 2D games with Entities, Components & Shit (ECS but without that "systems" crap)
 
 Detailed Description:
 ```
-[![Godot v4.7+](https://img.shields.io/badge/Godot-v4.7%2B-478CBF)](https://godotengine.org/download/archive/ "Requires Godot 4.7+") [![Comedot](https://img.shields.io/github/v/release/InvadingOctopus/comedot?include_prereleases&label=Comedot&color=20A000)](https://github.com/InvadingOctopus/comedot/releases "Latest Comedot Release")
+[![MIT License](https://img.shields.io/badge/License-MIT-FF0076)](https://github.com/InvadingOctopus/comedot/blob/develop/LICENSE.txt "MIT License") [![Godot v4.8+](https://img.shields.io/badge/Godot-v4.8%2B-0097FF)](https://godotengine.org/download/archive/ "Requires Godot 4.8+") [![Comedot](https://img.shields.io/github/v/release/InvadingOctopus/comedot?include_prereleases&label=Comedot&color=20A000)](https://github.com/InvadingOctopus/comedot/releases "Latest Comedot Release")
 
-**Comedot is an opinionated attempt to make an all-in-one framework for 2D games of any genre:** Platformer, shmup, RPG, strategy, puzzle, turn-based, tile-based etc.
+**An opinionated project template & components framework for 2D games** of any genre: Platformer, shmup, RPG, strategy, puzzle, turn-based, tile-based etc. 
 
-Build scenes by smacking components into entities and tweaking their exports. *"Entities"* and *"Components"* are just regular Godot Nodes but for gameplay mechanics, and you can edit the component scripts in any way, so you can mix this framework with your usual Godot workflow or any other addons or architecture or fetish.
+This is either the most overenginered shit you've ever seen or the most awesome way of making games ever.
+I made this while trying to make 100 different games at once, still yet to finish 1, but at least I get to learn which stuff is needed frequently in multiple genres & shove it into this shared library 🥲
+
+Use this to build scenes by smacking components into entities and tweaking their exports. *"Entities"* and *"Components"* are just regular Godot Nodes but for gameplay mechanics, and you can edit the component scripts in any way, so you can mix this framework with your usual Godot workflow or any other addons or architecture.
+
+<sub>*(if you think "ECS" only means "data-oriented design" you need to get out more :)*</sub>
 
 * [120+ megatons of components](https://github.com/InvadingOctopus/comedot/blob/develop/Notes/Components%20Catalog.md) for different kinds of movement, combat, interactions, inventory, abilities etc.
 * Support for turn-based gameplay that can be combined with real-time stuff.
 * Templates for Logo → Main Menu → Options, Input Remapping, Pause Overlay & simple game examples.
 * UI Controls like stat counters/bars, buttons for special skills etc.
-* [140+ neutron star spoonfuls of scripts](https://github.com/InvadingOctopus/comedot/blob/develop/Notes/Scripts%20Catalog.md) containing helper functions & automations for common tasks like creating animation frames etc.
-* Debugging tools like pretty logs & realtime charts for monitoring variables.
+* [150+ neutron star spoonfuls of scripts](https://github.com/InvadingOctopus/comedot/blob/develop/Notes/Scripts%20Catalog.md) containing helper functions & automations for common tasks like creating animation frames etc.
+* Snippets for VSCode/VSCodium.
+
+* Debugging tools like pretty logs & charts for monitoring variables.
 * Save/Load player preferences in config files with `Settings.anyName = 69`
+* Key/value bindings to automatically update Node properties by changing a global Dictionary.
 * Handles tricky edge case issues in physics, stats, collectibles etc.
 * Optimized for balancing ease of use + performance as much as GDScript will allow.
-* Meatcrafted well-documented components that can be Lego'ed together by AI to create various kinds of gameplay. \**(Comedot itself has no AI-generated code.)*
+* Meatcrafted & well-documented components that can be Lego'ed together by AI to create various kinds of gameplay. \**(Comedot itself has no AI-generated code.)*
 
 <br/>
 
@@ -36,7 +44,7 @@ Build scenes by smacking components into entities and tweaking their exports. *"
 
 **This is a work in constant progress!** For delicious details & the latest version, gaze upon the glorious GitHub repository: [https://github.com/InvadingOctopus/comedot/tree/develop](https://github.com/InvadingOctopus/comedot/tree/develop)
 
-🕹️ *To see some games & demos made with Comedot:* [syntaks.itch.io](https://syntaks.itch.io)
+🕹️ *To see some games & demos made with Comedot:* [syntaks.itch.io](https://syntaks.itch.io) or [@syntaks on Mastodon](https://mastodon.gamedev.place/@syntaks)
 
 
 ----
@@ -47,11 +55,11 @@ Font: **Jayvee Enaguas (HarvettFox96)'s Pixel Operator** https://www.dafont.com/
 ```
 
 Tags:			ECS, Components, Template, Framework, 2D
-Type:			Templates
+Type:			Full Project
 License:		MIT
 Source Code:	https://github.com/invadingoctopus/comedot
 
-AI Disclosure:	No AI generated code or assets! Codex AI used for code reviews. AGENTS.md provided for users who want AI assistance.
+AI Disclosure:	No AI-generated code or assets! Codex AI used for code reviews. AGENTS.md provided for users who want AI assistance.
 
 
 ## Media
@@ -61,18 +69,18 @@ https://github.com/InvadingOctopus/comedot-media
 
 ## Versions
 
-Version Name:	4.8.0.1.69
+Version Name:	4.8.0.4.42
 	First 3 numbers: Godot version
-	4th: Godot Dev/Beta/RC where <10 = Beta, 10+ = RC, 100 = release
-	6th: The Comedot release during that Godot version
+	4th: Godot Dev/Beta/RC where <10 = Beta, 10-90 = RC, 100 = release
+	5th: The Comedot release during that Godot version, in jumps of cool numbers like 42 → 69 → 420 → 666 etc.
 
 
 Version changelog:
 ```
-Latest Commit: [9aaae1b](https://github.com/InvadingOctopus/comedot/commit/9aaae1b4057a246b6010783b21c558e896940878) on 2026-07-19
+Latest Commit: [5110a67](https://github.com/InvadingOctopus/comedot/commit/5110a67c8e1601fa7cee7bb4c18506e79bf53355) on 2026-08-20
 
 Compare tags/branches on GitHub:
-[4.7.0.100.777 → develop](https://github.com/InvadingOctopus/comedot/compare/4.7.0.100.777...develop)
+[4.8.0.3.69 → 4.8.0.3.666](https://github.com/InvadingOctopus/comedot/compare/4.8.0.3.69...4.8.0.3.666)
 
 ```
 

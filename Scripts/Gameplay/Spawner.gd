@@ -17,32 +17,34 @@ extends Node
 @export var isEnabled: bool = true
 
 ## If [member sceneToSpawn] is an [Entity] and this flag is `true` AND [member shouldSuppressEntityLogs] is `false` then [member Entity.debugMode] is also set to `true`
-@export var debugMode: bool = false
+@export var debugMode: bool
 
 
 @export_group("Spawns")
 
 ## The path of the Scene to spawn copies of.
-@export_file("*.tscn") var sceneToSpawn: String: # DESIGN: A String instead of PackedScene to avoid loading until needed, right?
+## IMPORTANT: The spawned scene's root node must be a [Node2D] subclass; spawns are assumed to be positionable etc.
+@export_file("*.tscn") var sceneToSpawn: String: # PERFORMANCE: A [String] instead of [PackedScene] to avoid loading until needed
 	set(newValue):
+		if Engine.is_editor_hint(): sceneToSpawn = newValue; return
 		if newValue != sceneToSpawn:
 			if debugMode: Debug.printChange("sceneToSpawn", sceneToSpawn, newValue, true) # logAsTrace
 			sceneToSpawn = newValue
 
 ## If `true`, newly spawned nodes are added as children of the current scene's root node.
 ## NOTE: Suppresses [member parentOverride]
-@export var shouldSpawnInSceneRoot:	bool = false
+@export var shouldSpawnInSceneRoot:	bool
 
 ## The path to the node to set as the parent of new spawns.
 ## If empty or invalid, spawns will be added to the parent of this [Spawner] node.
 ## NOTE: Ignored if [member shouldSpawnInSceneRoot] is `true`
-@export var parentOverride:		NodePath = ^".."
+@export_node_path("Node") var parentOverride: NodePath = ^".."
 
 ## An optional group to add the spawned nodes to, such as `&"enemies"` etc.
 @export var groupToAddTo:		StringName
 
 ## If `true` then [method spawn] is deferred-called on [method _ready]
-@export var shouldSpawnOnReady:	bool = false
+@export var shouldSpawnOnReady:	bool
 
 ## If [member sceneToSpawn] is an [Entity] and this flag is `true` then [member Entity.isLoggingEnabled] is set to `false`, in order to reduce log clutter.
 ## NOTE: Does NOT disable [member Entity.debugMode]
@@ -50,6 +52,7 @@ extends Node
 
 ## Adds a [Timer] as a child of this [Spawner] and connects its [signal Timer.timeout] → [method Spawner.spawn]
 ## If there's already a [Timer] child node, it is reused.
+## NOTE: Not usable from [Spawner] subclasses such as [SpawnerRandom] etc.
 @export_tool_button("Add Timer", "Timer") var addTimerButton: Callable = addTimerInEditor
 
 
@@ -71,25 +74,37 @@ extends Node
 
 #region State
 @export_storage var totalNodesSpawned: int
-#region
+var isSpawning: bool ## Set to `true` during an active [method spawn] call.
+#endregion
 
 
 #region Signals
 
-## Emitted before [member sceneToSpawn] is loaded and a copy is instantiated.
+## Emitted at the start of [method setupSpawn] before a [member sceneToSpawn] is chosen.
+## TIP: This allows a signal handler to modify the [Spawner] state.
+signal willSetupSpawn
+
+## Emitted before [member sceneToSpawn] is validated, loaded and a copy is instantiated.
 ## TIP: This allows a signal handler to conditionally choose a different scene if needed.
 signal willSpawn(scenePathToSpawn: String)
 
 ## Emitted before the newly-instantiated scene copy is added to the parent node.
 ## TIP: This allows the position etc. to be modified before the child node is made visible.
-signal willAddSpawn(newSpawn: Node2D, parent: Node)
+signal willAddSpawn(newSpawn:	Node2D, parent: Node)
 
 ## Emitted after [signal willAddSpawn]
 ## TIP: To modify positioning, use the earlier signal to prevent visually-jarring jumps etc.
-signal didSpawn(newSpawn: Node2D, parent: Node)
+signal didSpawn(newSpawn:		Node2D, parent: Node)
+
+## Emitted if [method spawn] or [method validateSpawnedNode] fails.
+## NOTE: The [param parent] argument may be `null` if the spawn fails before a parent can be chosen.
+## TIP: Connect to [method Timer.stop] to stop retrying invalid spawns/waves etc.
+signal didFailSpawn(scenePath:	String, parent: Node)
 
 #endregion
 
+
+#region Setup & Validation
 
 func _ready() -> void:
 	if Engine.is_editor_hint(): return
@@ -99,43 +114,97 @@ func _ready() -> void:
 		spawn.call_deferred()
 
 
+## An abstract hook for subclasses to prepare and/or pick a scene to spawn, such as in [SpawnerList] & [SpawnerStack]
+func setupSpawn() -> bool:
+	return true
+
+
+## Validates [member sceneToSpawn]
+## May be overridden by subclasses to add different checks.
+func validateSceneToSpawn(printWarnings: bool = self.debugMode) -> bool:
+	# Log warnings only on `debugMode` to avoid noise if a caller is just checking
+	if sceneToSpawn.is_empty():
+		if printWarnings: Debug.printWarning("validateSceneToSpawn(): sceneToSpawn is empty", self)
+		return false
+	elif not ResourceLoader.exists(sceneToSpawn, "PackedScene"):
+		if printWarnings: Debug.printWarning("validateSceneToSpawn(): sceneToSpawn does not exist or is not a PackedScene: " + sceneToSpawn, self)
+		return false
+	else:
+		return true
+
+
+## A method for subclasses to override. Prepares newly spawned node with further game-specific logic.
+## May suppress the creation of a newly spawned node by checking additional conditions and returning `false`.
+@warning_ignore("unused_parameter")
+func validateSpawnedNode(newSpawn: Node2D, parent: Node) -> bool:
+	return isEnabled # NOTE: Let `isEnabled` be used by handlers/hooks to abort a spawn
+
+
+## Called by [method spawn] on failure.
+func abortSpawn(scenePath: String, parent: Node, debugMessage: String = "") -> void:
+	if debugMode and not debugMessage.is_empty(): Debug.printDebug(debugMessage, self)
+	didFailSpawn.emit(scenePath, parent)
+	# NOTE: Clear `isSpawning` AFTER `didFailSpawn` to prevent handlers from calling spawn() recursively
+	isSpawning = false
+
+#endregion
+
+
 #region It's Alive!!
 
 ## Creates and returns a new instance of [member sceneToSpawn]
 func spawn() -> Node2D:
 	if Engine.is_editor_hint(): return null
 
-	# TBD: Add an `isSpawning` flag to avoid "re-entrancy" or let signal handlers spawn multiple times etc?
-	if not isEnabled or not validateSceneToSpawn(true): return null # printWarnings
+	if not isEnabled or isSpawning: return null # TBD: Log warning if `isSpawning`?
+
+	# Guard against nested spawns & "re-entrancy"
+	isSpawning = true
+
+	# Allow subclasses to pick a scene
+	willSetupSpawn.emit() # NOTE: Handlers may disable `isEnabled` to abort a spawn…
+	# …so we check `isEnabled` again
+	if not isEnabled or not setupSpawn():
+		abortSpawn(sceneToSpawn, null)
+		return null
+
+	# NOTE: Emit the `will` signal before loading the scene path,
+	# in case a signal handler wants to modify `sceneToSpawn`
+	# IMPORTANT: Emit before validation in case handlers mutate our state!
+	willSpawn.emit(sceneToSpawn)
+
+	if not validateSceneToSpawn(true): # printWarnings
+		abortSpawn(sceneToSpawn, null)
+		return null	
 
 	# NOTE: <0 is ignored
-	if maxTotalToSpawn >= 0 \
+	if  maxTotalToSpawn >= 0 \
 	and totalNodesSpawned >= maxTotalToSpawn:
-		if debugMode: Debug.printDebug(str("totalNodesSpawned: ", totalNodesSpawned, " >= maxTotalToSpawn: ", maxTotalToSpawn), self)
+		abortSpawn(sceneToSpawn, null, str("totalNodesSpawned: ", totalNodesSpawned, " >= maxTotalToSpawn: ", maxTotalToSpawn))
 		return null
 
 	# NOTE: <0 is ignored
-	if maxLimitInGroup >= 0 \
+	if  maxLimitInGroup >= 0 \
 	and not groupToAddTo.is_empty():
 		var groupCount: int = self.get_tree().get_node_count_in_group(groupToAddTo)
 		if  groupCount >= maxLimitInGroup:
-			if debugMode: Debug.printDebug(str("maxLimitInGroup: ", maxLimitInGroup, " >= nodes in ", groupToAddTo, ": ", groupCount), self)
+			abortSpawn(sceneToSpawn, null, str("maxLimitInGroup: ", maxLimitInGroup, " >= nodes in ", groupToAddTo, ": ", groupCount))
 			return null
-
-	# NOTE: Emit the `will` signal before loading the scene path,
-	# in case a signal handler might want to modify `sceneToSpawn`
-	willSpawn.emit(sceneToSpawn)
 
 	# Load
 
 	var sceneResource: PackedScene = load(sceneToSpawn)
 	if not sceneResource:
 		Debug.printError("spawn() cannot load sceneToSpawn: " + sceneToSpawn, self)
+		abortSpawn(sceneToSpawn, null)
 		return null
 
-	var newSpawn: Node2D = sceneResource.instantiate()
+	var instance := sceneResource.instantiate() # Do NOT cast `as Node2D` so we can free it; casting would give `null` if the scene is a [Node] etc. # TBD: PERFORMANCE: Crash if not [Node2D] instead of creating another `var`?
+	var newSpawn: Node2D = instance as Node2D
 	if not newSpawn:
-		Debug.printError("spawn() unable to instantiate scene: " + sceneToSpawn, self)
+		Debug.printError("spawn() unable to instantiate scene or not a Node2D subclass: " + sceneToSpawn, self)
+		if instance: instance.queue_free()
+		abortSpawn(sceneToSpawn, null)
 		return null
 
 	# Prep the newborn
@@ -147,7 +216,7 @@ func spawn() -> Node2D:
 		elif self.debugMode:
 			# If we're not explicitly silencing Entity logs and the spawner is in debugMode, log the spawned Entity too!
 			newSpawn.isLoggingEnabled = true
-			newSpawn.debugMode = true
+			newSpawn.debugMode		  = true
 
 	# Choose a parent
 
@@ -163,11 +232,12 @@ func spawn() -> Node2D:
 	if not parent:
 		Debug.printWarning(str("spawn() cannot find valid parent node for: ", newSpawn), self)
 		newSpawn.queue_free()
+		abortSpawn(sceneToSpawn, null)
 		return null
 
 	# Let the game-specific subclasses, if any, verify & customize the new copies.
 
-	if validateNewNode(newSpawn, parent):
+	if validateSpawnedNode(newSpawn, parent):
 
 		if not groupToAddTo.is_empty():
 			newSpawn.add_to_group(groupToAddTo, true) # persistent
@@ -176,41 +246,24 @@ func spawn() -> Node2D:
 		willAddSpawn.emit(newSpawn, parent) # TBD: Should this be emitted before adding to a group?
 		parent.add_child(newSpawn,  false) # PERFORMANCE: not force_readable_name
 
-		if  newSpawn.get_parent() == parent: # NOTE: Make sure the new node has not been reparented during its `_ready()`
-			newSpawn.owner = parent # INFO: Necessary for persistence to a [PackedScene] for save/load.
+		if  newSpawn.get_parent() == parent: # NOTE: Make sure the new node has not been reparented during its _ready()
+			# Set the "owner" for persistence etc.
+			# NOTE: Godot docs say "The owner needs to be the current scene root."
+			# TBD: PERFORMANCE: Get the scene root or use a shortcut of reusing the `parent.owner`?
+			newSpawn.owner  = parent.owner if parent.owner else parent # Default to `parent` in case `parent` IS the scene root
 
 		totalNodesSpawned += 1
 		if debugMode: Debug.printDebug(str("spawn() didSpawn: ", newSpawn, " in ", newSpawn.get_parent(), ", total: ", totalNodesSpawned, ", total in group: ", self.get_tree().get_nodes_in_group(groupToAddTo).size()), self)
 		didSpawn.emit(newSpawn, parent)
+		isSpawning = false
 		return newSpawn
 
 	# If a subclass rejects a spawn for whatever reason, abort it :'(
 	else:
 		newSpawn.visible = false # Just in case
 		newSpawn.queue_free()
+		abortSpawn(sceneToSpawn, parent)
 		return null
-
-#endregion
-
-
-#region Validation
-
-## Validates [member sceneToSpawn]
-## May be overridden by subclasses to add different checks.
-func validateSceneToSpawn(printWarnings: bool = self.debugMode) -> bool:
-	# Log warnings only on `debugMode` to avoid noise if a caller is just checking
-	if sceneToSpawn.is_empty():
-		if printWarnings: Debug.printWarning("validateSceneToSpawn(): sceneToSpawn is empty", self)
-		return false
-
-	return true
-
-
-## A method for subclasses to override. Prepares newly spawned node with further game-specific logic.
-## May suppress the creation of a newly spawned node by checking additional conditions and returning `false`.
-@warning_ignore("unused_parameter")
-func validateNewNode(newSpawn: Node2D, parent: Node) -> bool:
-	return isEnabled
 
 #endregion
 

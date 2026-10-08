@@ -11,6 +11,7 @@ extends Component
 @export var statsToModify:		Dictionary[Stat, int] ## A [Dictionary] where the keys are [Stat] Resources and the values are the positive or negative modifier to apply to that respective Stat.
 @export var shouldEmitBubble:	bool = true ## Spawns a visual [TextBubble] saying the Stat's name and change in value that floats up from the Entity.
 @export var shouldColorBubble:	bool = true
+@export var spaceBetweenBubbles: int = 2
 @export var isEnabled:			bool = true
 #endregion
 
@@ -38,12 +39,10 @@ func modifyStats() -> void:
 			# NOTE: Check the `Stat.previousChange` to see the actual difference in value instead of just the modifier we attempted to apply.
 			# NOTE: Spawn the Bubble in the Entity's parent, not as a child of the Entity itself, as we're about to die anyway :'(
 			# TBD:  Put a space between text & number?
-			var labelSettings: LabelSettings = TextBubble.create( \
-				str(stat.displayName, "%+d" % stat.previousChange), \
+			var labelSettings: LabelSettings = GameplayResourceBubble.createForStatChange( \
+				stat, \
 				entity.get_parent(), \
-				Vector2(entity.position.x, entity.position.y + bubbleOffsetY)) \
-					.label.label_settings
-			if shouldColorBubble:
-				if   stat.previousChange > 0: labelSettings.font_color = Color.GREEN
-				elif stat.previousChange < 0: labelSettings.font_color = Color.ORANGE
-			bubbleOffsetY -= 10 # Add some spacing between each Stat
+				Vector2(entity.position.x, entity.position.y + bubbleOffsetY), \
+				true, shouldColorBubble) \
+					.ui.label.label_settings # appendDisplayName (the `true` above)
+			bubbleOffsetY -= labelSettings.font_size + spaceBetweenBubbles # Add some spacing between each bubble
