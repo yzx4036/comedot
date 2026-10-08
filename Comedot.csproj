@@ -1,8 +1,14 @@
-<Project Sdk="Godot.NET.Sdk/4.7.0-beta.1">
+<Project Sdk="Godot.NET.Sdk/4.8.0-dev.7">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 框架自包含：Game/ 业务代码不参与框架程序集（业务仓自行构建）；Temporary/Lab 为临时实验目录 -->
+    <Compile Remove="Game/**/*.cs" />
+    <Compile Remove="Temporary/**/*.cs" />
+    <Compile Remove="Lab/**/*.cs" />
+  </ItemGroup>
 </Project>

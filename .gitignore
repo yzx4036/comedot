@@ -12,6 +12,10 @@ export_presets.cfg
 data_*/
 mono_crash.*.json
 
+# C# build outputs
+bin/
+obj/
+
 # Editors
 .vscode/*
 .editorconfig
