@@ -3,13 +3,13 @@ class_name LubanConfigNameGenerator
 extends RefCounted
 
 
-const defaultConfigDirectory: String = "res://Game/Cd_ProjectZero/Assets/Configs/GameConfigs"
-const defaultOutputScriptPath: String = "res://Game/Cd_ProjectZero/Scripts/Gameplay/Config/TbCfg.gd"
+const defaultConfigDirectory: String = "res://Game/MyGame/Assets/Configs/GameConfigs"
+const defaultOutputScriptPath: String = "res://Game/MyGame/Scripts/Gameplay/Config/TbCfg.gd"
 const defaultClassName: String = "TbCfg"
-const defaultAutoGenDirectory: String = "res://Game/Cd_ProjectZero/Scripts/Mono/Luban/Configs/AutoGen"
-const defaultFieldOutputScriptPath: String = "res://Game/Cd_ProjectZero/Scripts/Gameplay/Config/TbField.gd"
+const defaultAutoGenDirectory: String = "res://Game/MyGame/Scripts/Mono/Luban/Configs/AutoGen"
+const defaultFieldOutputScriptPath: String = "res://Game/MyGame/Scripts/Gameplay/Config/TbField.gd"
 const defaultFieldClassName: String = "TbField"
-const defaultLoaderOutputDirectory: String = "res://Game/Cd_ProjectZero/Scripts/Gameplay/Config/Loaders"
+const defaultLoaderOutputDirectory: String = "res://Game/MyGame/Scripts/Gameplay/Config/Loaders"
 const configFileExtension: String = "bytes"
 const csharpFileExtension: String = "cs"
 const loaderFileExtension: String = "gd"
