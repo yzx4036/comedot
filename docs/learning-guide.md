@@ -1,6 +1,8 @@
-# Comedot 框架入门学习指南
+# Comedot 框架入门学习指南（本 fork 版）
 
-> **版本说明：** 本指南基于 Godot **4.6 / 4.7** 版本的 Comedot 框架，API 可能随版本迭代而变化。
+> **版本说明：** 本指南基于 Godot **4.8**（本 fork `config/features = PackedStringArray("4.8", "C#")`）的 Comedot 框架，API 可能随版本迭代而变化。
+> **fork 说明：** 本 fork 无上游的 `Scripts/Start.gd` 启动脚本，启动职责由 AutoLoad 体系承担；本指南已按本 fork 实况修正启动相关描述（上游协议对照见附录 B）。
+> 源自 `_Doc/学习指南.md`（2026-10-13 并入 docs）· 已融合 `_Doc/Note/` 概念笔记。
 
 ---
 
@@ -73,12 +75,12 @@ comedot/
 │   ├── Global.gd        ← 全局常量、组名、标志
 │   ├── GameState.gd     ← 跨场景游戏状态
 │   ├── SceneManager.gd  ← 场景切换与导航栈
-│   ├── Debug.gd         ← 调试工具与日志
+│   ├── Debug.tscn       ← 调试工具与日志（含 Debug.gd 脚本）
 │   ├── Settings.gd      ← 玩家偏好设置（自动存档）
 │   ├── GlobalInput.gd   ← 输入动作定义
-│   ├── GlobalUI.gd      ← 全局 UI 管理
-│   ├── GlobalSonic.gd   ← 全局音频管理
-│   └── TurnBasedCoordinator.gd  ← 回合制协调器
+│   ├── GlobalUI.tscn    ← 全局 UI 管理
+│   ├── GlobalSonic.tscn ← 全局音频管理
+│   └── TurnBasedCoordinator.tscn  ← 回合制协调器
 │
 ├── Resources/           ← 数据资源类
 │   ├── Stats/           ← 属性统计（生命、弹药等）
@@ -89,9 +91,10 @@ comedot/
 │   └── Upgrade.gd       ← 升级/强化系统
 │
 ├── Scripts/             ← 非实体/组件的共享脚本
-│   ├── Start.gd         ← ⭐ 框架启动脚本（必须挂载）
 │   ├── Tools.gd         ← 通用工具函数
-│   └── Animations.gd    ← 动画辅助
+│   ├── Data/            ← 数据管线
+│   ├── Mono/            ← C# 支持（含 Luban 配置服务）
+│   └── Visual/          ← 动画/视觉辅助
 │
 ├── Templates/           ← ⭐ 快速开始模板
 │   ├── Scenes/          ← 完整场景模板（平台、俯视角）
@@ -102,10 +105,13 @@ comedot/
 ├── Tests/               ← 手动测试场景
 ├── UI/                  ← 可定制 UI 控件（血条、弹药、技能按钮等）
 ├── Assets/              ← 第三方资源（字体、图标、瓦片等）
-└── Game/                ← 你的游戏专属目录（空，等待填充）
+├── docs/                ← 开发文档（本逆向蒸馏文档集）
+└── Game/                ← 你的游戏专属目录（本 fork 现为框架闭环示例）
 ```
 
 > **原则：** 框架代码在 `Game/` **以外**；你的游戏代码放在 `Game/` 里，或在现有目录下创建子文件夹（如 `Scenes/MyGame/`）。
+>
+> ⚠️ **关于 `Scripts/Start.gd`**：上游文档（含本指南的早期版本）描述的 `Scripts/Start.gd` 启动脚本**在本 fork 中不存在**。本 fork 的启动由 AutoLoad 体系承担，详见 §3.3 与附录 B。
 
 ---
 
@@ -155,27 +161,34 @@ var entity: Entity = parentEntity
 var gun: GunComponent = entity.components.get(&"GunComponent")
 ```
 
-### 3.3 框架启动流程
+### 3.3 框架启动流程（本 fork 实况）
+
+> ⚠️ **与上游的差异**：上游依靠 `Scripts/Start.gd` 作为根启动脚本（`Start._enter_tree()` → `setupGameState()`；`Start._ready()` → `startComedot()` → `applyGlobalFlags()`），并在 `Global.hasStartScript` 上打启动标记。**本 fork 无该文件**（无 `Scripts/Boot/`），启动职责由各 AutoLoad 自行完成。详见 `architecture-asbuilt.md` §2.3。
+
+实况启动链：
 
 ```
-project.godot
-	└─→ IOLogoScene.tscn (extends Start)
-			├─ _enter_tree(): setupGameState()
-			├─ _ready(): startComedot() → applyGlobalFlags()
+project.godot (run/main_scene)
+	└─→ Scenes/Launch/Logo/IOLogoScene.tscn（class_name LogoSceneIO extends Node2D）
+			├─ Logo 动画/跳过处理（期间临时禁用暂停快捷键）
 			└─→ SceneManager.transitionToScene(GameFrame.tscn)
+					└─ GameFrame 主菜单（MainMenuButtons）
+							└─→ GameState.startMainScene()（读取 Settings.mainGameScenePath）
+									└─→ Game 层由 override.cfg 覆盖为 res://Game/Example/ExampleScene.tscn
 ```
 
-**你的游戏主场景根节点必须挂载 `Start.gd`（或继承它的脚本），否则框架不会初始化！**
+AutoLoad 启动顺序（`project.godot` 实况，从先到后）：
 
-```gdscript
-# 自定义主场景脚本示例
-class_name MyGameStart
-extends Start
-
-func _ready() -> void:
-	super._ready()  # ⚠️ 必须调用 super，否则框架无法启动
-	# 你的初始化代码...
 ```
+Global → Settings → Debug → SceneManager → GlobalInput → GameState → GlobalUI → GlobalSonic → TurnBasedCoordinator
+```
+
+关键机制：
+
+- **`Settings` 早于正常场景启动**：`Settings` 在 `NOTIFICATION_PARENTED` 阶段即加载 `user://…Settings.cfg` 与项目覆盖，早于 `_enter_tree()`/`_ready()`。启动代码可以提前读取设置，不必等待 `Settings._ready()`。
+- **早期日志**：AutoLoad 生命周期日志应使用 `Debug.printAutoLoadLog()`（见 §10）。
+- **框架检查**：`Debug.performFrameworkChecks()` 检查 `Global.hasStartScript` 是否被设置；本 fork 无 Start 脚本，该提示会以警告形式出现——**属已知漂移，非故障**。
+- 新项目若采用上游协议（`addons/Comedot/GameProjectInitializer.gd` 生成的 `Scripts/Boot/*Start.gd` 骨架），子类的 `_enter_tree()` 与 `_ready()` 必须调用 `super`。
 
 ---
 
@@ -184,7 +197,7 @@ func _ready() -> void:
 ### 阶段一：运行示例，感受框架（30 分钟）
 
 1. 在 Godot 中打开 `project.godot`
-2. 按 **F5** 运行整个项目（看 Logo → GameFrame 流程）
+2. 按 **F5** 运行整个项目（看 Logo → GameFrame → Example 流程）
 3. 在文件系统中找到 `Templates/Scenes/PlatformerSceneTemplate.tscn`，按 **F6** 单独运行它
 4. 同样运行 `Templates/Examples/TreesWithGunsExampleScene.tscn` 和 `Templates/Examples/ComponentSwappingExampleScene.tscn`
 5. 打开这些场景，在场景树中观察 Entity → Component 的层级结构
@@ -199,7 +212,7 @@ func _ready() -> void:
 | `Entities/Entity.gd` | `components` 字典, `registerComponent()`, 快捷访问方法 |
 | `Components/Combat/HealthComponent.gd` | 典型组件的结构：参数、信号、生命周期 |
 | `Components/Physics/CharacterBodyComponent.gd` | 物理应用组件 |
-| `Scripts/Start.gd` | 框架启动逻辑 |
+| `AutoLoad/SceneManager.gd` | 场景切换与栈式导航 |
 
 ### 阶段三：从模板开始，修改实体（1-2 小时）
 
@@ -295,18 +308,17 @@ PlayerEntity 或任意 Entity
 
 ### 5.5 场景设置
 
-你的主场景根节点需要挂载 `Start.gd`：
+你的主场景：
 
 ```
-MyGameScene (Node2D)  ← 挂载 Scripts/Start.gd 或你的 extends Start 脚本
+MyGameScene (Node2D)
 ├── TileMapLayer      ← 地形
 ├── PlayerEntity
 └── ...
 ```
 
-在 `Start.gd` 的 Inspector 中配置：
-- `mainGameScenePath`：游戏主场景路径
-- `musicFolder`：音乐目录
+- **本 fork 现况**：主场景由 `Game/override.cfg` 覆盖指向 `res://Game/Example/ExampleScene.tscn`；框架默认（`project.godot`）为 Logo 启动链。
+- **上游协议（本 fork 不适用）**：主场景根节点挂 `Scripts/Start.gd` 或 `extends Start` 的子类（Inspector 配置 `mainGameScenePath`、`musicFolder` 等）。若你的项目采用上游协议骨架（`Scripts/Boot/*Start.gd`），记得子类必须调用 `super`。
 
 ### 5.6 场景切换
 
@@ -372,14 +384,14 @@ func onDamageReceiving_didReceiveDamage(_damage: int) -> void:
 | 单例 | 主要用途 |
 |------|---------|
 | `Global` | 全局常量、节点组名（`Global.Groups.players` 等）、音频总线名 |
-| `GameState` | 跨场景的游戏状态字典，存储关卡进度、解锁状态等 |
+| `GameState` | 跨场景的游戏状态字典，存储关卡进度、解锁状态等；同时是全局事件总线（`statUpdated`/`gameDidOver`/`playersChanged` 等信号） |
 | `SceneManager` | 场景切换、导航栈管理、暂停/恢复 |
-| `Settings` | 玩家偏好（音量、全屏等），自动保存到配置文件 |
-| `GlobalInput` | 输入动作名称常量，避免魔法字符串 |
-| `GlobalUI` | 全局 UI 节点管理（HUD、弹窗等） |
+| `Settings` | 玩家偏好（音量、全屏等），自动保存到配置文件（`NOTIFICATION_PARENTED` 阶段即加载） |
+| `GlobalInput` | 输入动作名称常量，避免魔法字符串；处理全局快捷键 |
+| `GlobalUI` | 全局 UI 节点管理（HUD、弹窗、转场蒙版等） |
 | `GlobalSonic` | 音效与音乐播放（`GlobalSonic.playMusic(...)`, `GlobalSonic.playSFX(...)`） |
-| `Debug` | 调试日志：`Debug.printLog()`, `Debug.printWarning()`, `Debug.printTrace()` |
-| `TurnBasedCoordinator` | 回合制游戏的全局协调器 |
+| `Debug` | 调试日志：`Debug.printLog()`, `Debug.printWarning()`, `Debug.printTrace()`；早期日志用 `Debug.printAutoLoadLog()` |
+| `TurnBasedCoordinator` | 回合制游戏的全局协调器（非回合制项目会在启动时被移除） |
 
 ### 常用示例
 
@@ -440,7 +452,7 @@ if health.value <= 0:
 
 ### 快速设置
 
-1. **项目设置 → AutoLoad**，确认 `TurnBasedCoordinator` 已启用
+1. **项目设置 → AutoLoad**，确认 `TurnBasedCoordinator` 已启用（非回合制项目会在启动时自动移除它）
 2. 场景中添加继承自 `TurnBasedEntity` 的实体
 3. 为实体创建继承自 `TurnBasedComponent` 的组件
 4. 将"下一回合"按钮或玩家输入连接到 `TurnBasedCoordinator.startTurnProcess()`
@@ -618,26 +630,49 @@ extends GameplayResourceBase
 ### 10.2 Debug AutoLoad
 
 ```gdscript
-Debug.printLog("普通信息", self)          # 普通日志
-Debug.printWarning("警告", self)          # 黄色警告
-Debug.printError("错误", self)            # 红色错误
-Debug.printHighlight("高亮信息", self)    # 彩色高亮
-Debug.printTrace("追踪调用栈", self)      # 带调用栈
+Debug.printAutoLoadLog("某 AutoLoad 启动")  # AutoLoad 早期生命周期日志（最轻量）
+Debug.printLog("普通信息", self)            # 普通日志
+Debug.printWarning("警告", self)            # 黄色警告
+Debug.printError("错误", self)              # 红色错误
+Debug.printHighlight("高亮信息", self)      # 彩色高亮
+Debug.printTrace("追踪调用栈", self)        # 带调用栈
 ```
+
+**方法选型表：**
+
+| 方法 | 适用场景 |
+| --- | --- |
+| `Debug.printAutoLoadLog()` | AutoLoad 生命周期与启动顺序消息（`NOTIFICATION_PARENTED`、早期 `_ready()`） |
+| `Debug.printDebug()` | 受 `shouldPrintDebugLogs` 控制的调试用低优先级消息 |
+| `Debug.printLog()` | Debug 状态可用后的常规富日志输出 |
+| `Debug.printTrace()` | 调试构建中的栈感知定位 |
+| `Debug.printWarning()` / `Debug.printError()` | 不应被调试日志设置隐藏的用户可见警告/错误 |
+
+AutoLoad 日志规范：
+
+- 不要给 AutoLoad 加直接 `print()`；统一走 `Debug.printAutoLoadLog()` 保持输出一致。
+- 标准 AutoLoad 日志颜色为 `Global.Colors.logAutoload`。
+- 新增框架检查项优先加到 `Debug.performFrameworkChecks()`，保持集中可预测。
 
 ### 10.3 实时变量图表
 
 使用 `DebugComponent` 或 `ChartWindow` 实时监控任意变量（如速度、生命值随时间的变化）：
 
 1. 在实体下添加 `Components/DebugComponent.tscn`
-2. 配置要监控��属性路径，如 `../CharacterBodyComponent:body:velocity:x`
+2. 配置要监控的属性路径，如 `../CharacterBodyComponent:body:velocity:x`
 
 ### 10.4 命令行语法检查
 
 ```powershell
-# Windows PowerShell（headless 静态检查）
-godot --headless --check-only --path "D:\_Proj\_My\_GodotProj\comedot" --script res://Components/MyComponent.gd
+# Windows PowerShell（headless 静态检查；以本仓库为例）
+godot --headless --check-only --path "E:\_Proj\GDProj\Comedot_GDGameProjZero" --script res://Components/MyComponent.gd --log-file "C:\Users\E_Ye\AppData\Local\Temp\godot-check.log"
 ```
+
+> 提示：headless 模式下如遇 `user://logs` 写入失败导致启动崩溃，显式传入可写的 `--log-file` 路径（见 `AGENTS.md`）。
+
+### 10.5 Runtime 自动化回归
+
+Godot MCP CLI 提供了运行中输入模拟与调试输出读取能力，详见 `godot-mcp-automation.md`。当前仓库的回归标记链路见 `Game/AGENTS.override.md`。
 
 ---
 
@@ -713,10 +748,31 @@ var players = get_tree().get_nodes_in_group(Global.Groups.players)
 | 首次加载项目时报错 | 关闭并重新打开项目，让 Godot 重新导入所有资源 |
 | 子类化组件后行为异常 | 检查是否在所有覆写方法中调用了 `super` |
 | 组件参数配置有误 | 在 Inspector 中仔细检查所有 @export 字段的值 |
+| `Debug` 报"缺少 Start 脚本"警告 | 本 fork 已知漂移（无 `Scripts/Start.gd`），非故障；不影响运行 |
 
 ---
 
-## 附录：推荐学习顺序文���清单
+## 附录 A：学习路线 Checklist
+
+- [ ] 从 `project.godot` 运行项目，确认启动场景流程（Logo → GameFrame → Example）
+- [ ] 阅读 `AutoLoad/` 各单例，总结启动职责（对照 §3.3）
+- [ ] 追踪 AutoLoad 交互：`Debug`、`Settings`、`SceneManager`、`TurnBasedCoordinator`
+- [ ] 确认 `Settings` 在 `NOTIFICATION_PARENTED` 加载偏好，并理解为何早于 `_enter_tree()`
+- [ ] 阅读 `Debug.printAutoLoadLog()`，分清哪些启动消息该用它而不是普通调试日志
+- [ ] 从 `Components/` 挑一个组件，梳理其数据流
+- [ ] 从 `Entities/` 挑一个实体，梳理其挂载的组件组合
+- [ ] 完成一次实际改动并在笔记中记录验证步骤
+
+## 附录 B：上游 Start 协议对照（本 fork 不适用）
+
+> 压缩自 `_Doc/Note/30-Flow/StartReading-StartGd.md` 与 `_Doc/Note/00-Concepts/AutoloadAndStartFlow.md`。本 fork 无 `Scripts/Start.gd`；以下为**上游协议**要点，供对照与新项目骨架参考。
+
+- **职责**：从启动场景根节点引导框架状态；向 AutoLoad 应用导出标志；按需配置回合制运行时。
+- **生命周期**：`_enter_tree()` → `setupGameState()`（更新 `Settings.mainGameScenePath`、合并 `GameState.globalData`、实例化 `gameStateNodes`）；`_ready()` → `startComedot()`（打 `Global.hasStartScript` 标记、框架检查）→ `applyGlobalFlags()`（Debug/UI、音乐、回合制协调器）。
+- **关键导出**：`mainGameScenePath`、`initialGlobalData`、`gameStateNodes`、`musicFolder`/`musicFileToPlayOnStart`/`shouldPlayRandomMusicIndex`、`isTurnBasedGame` 与回合延时、Debug 标志。
+- **Gotchas**：`Settings` 不等待 `_ready()` 就加载配置；早期 AutoLoad 日志用 `printAutoLoadLog()`；`isTurnBasedGame=false` 时 `TurnBasedCoordinator` 被移除（之后访问会崩，属设计）；回合延时最小守卫 `minimumTurnDelay = 0.05`。
+
+## 附录 C：推荐学习清单
 
 ### 入门必读（按顺序）
 
@@ -729,11 +785,12 @@ var players = get_tree().get_nodes_in_group(Global.Groups.players)
 ### 进阶（按需阅读）
 
 6. `Conventions.md` — 编码约定（风格/命名/设计哲学）
-7. `BestPractices.md` — 最佳实践
-8. `Scripts/Start.gd` — 框架启动流程
+7. `docs/best-practices.md` — 框架实践指南
+8. `docs/architecture-asbuilt.md` — as-built 架构逆向（模块依赖与风险）
 9. `AutoLoad/SceneManager.gd` — 场景管理
 10. `AutoLoad/GameState.gd` — 全局状态管理
 11. `Resources/Stats/` — 属性统计系统
+12. `docs/luban-config-tables.md` — Luban 配置表（C#/GDScript 桥）
 
 ### 特定功能
 
@@ -741,6 +798,7 @@ var players = get_tree().get_nodes_in_group(Global.Groups.players)
 - 回合制 → `Components/TurnBased/` + `Entities/TurnBased/` + `Tests/TurnBased/`
 - UI → `UI/` + `Templates/HUDTemplate.tscn`
 - 瓦片地图 → `Components/Movement/` 中的 TileBased 系列
+- 自动化测试 → `docs/godot-mcp-automation.md`
 
 ---
 
