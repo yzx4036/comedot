@@ -1,15 +1,17 @@
-# Godot MCP CLI Automation Guide
+# Godot MCP CLI 自动化指南
+
+> 源自 `_Doc/GodotMcpCliAutomationGuide.md`（2026-10-13 并入 docs）· 项目状态与路径已按 as-built 实况修正
 
 本文档面向在本项目中使用 Godot MCP CLI 开展 Godot 编辑器自动化、运行调试和 AI 辅助开发的工作流。
 
 当前本机可执行命令名是 `godot-mcp`。上游仓库与部分项目指令中可能称为 `godot-mcp-cli`；在本项目自动化执行时，以本机 `godot-mcp --list-tools` 和 `godot-mcp --help <tool>` 输出为准。
 
 依据来源：
+
 - 本项目根目录 `AGENTS.md`、`Conventions.md`、`HowTo.md`、`README.md`
 - `.github/copilot-instructions.md`、`.github/prompt-guide.md`
-- `Game/AGENTS.override.md`
-- `Game/Cd_ProjectZero/Docs/ProjectPrompt.md`、`ProjectMap.md`、`StartupFlow.md`
-- `_Doc/BestPractices.md` 与 `_Doc/Note/` 中的启动流程笔记
+- `Game/AGENTS.override.md`（Game/ 子树规则与回归标记）
+- `docs/best-practices.md`、`docs/learning-guide.md`（框架实践与启动流程笔记）
 - 当前本机执行的 `godot-mcp --list-tools` 与 `godot-mcp --help <tool>` 输出
 - 当前项目内已安装的 `addons/godot_mcp/` 插件代码
 - `godot-mcp-cli` 仓库：https://github.com/nguyenchiencong/godot-mcp-cli
@@ -23,19 +25,20 @@
 addons/godot_mcp/
 ```
 
-`project.godot` 当前状态：
+`project.godot` 当前状态（as-built 实况）：
 
 ```text
-config/features=PackedStringArray("4.7")
+config/features=PackedStringArray("4.8", "C#")
 config/project_settings_override="res://Game/override.cfg"
-MCPInputHandler="*res://addons/godot_mcp/mcp_input_handler.gd"
 enabled=PackedStringArray("res://addons/Comedot/plugin.cfg", "res://addons/godot_mcp/plugin.cfg")
 ```
 
 这说明：
+
 - Godot MCP 插件已在项目中启用。
-- `MCPInputHandler` 已作为 AutoLoad 注册，用于运行中输入模拟。
-- 项目通过 `Game/override.cfg` 切换到当前游戏 `Game/Cd_ProjectZero/` 的启动入口。
+- `MCPInputHandler`（运行中输入模拟）由 MCP 插件（`mcp_server.gd`）在启用时按需注册为 AutoLoad；新注册后需重启游戏运行实例才生效。
+- 项目通过 `Game/override.cfg` 将运行主场景指向 `res://Game/Example/ExampleScene.tscn`（Comedot 框架闭环示例）。
+- 历史上的武侠业务（`Cd_ProjectZero`）已整体迁出至独立业务仓 `Comedot_GDGameProjWuXia`；本仓不再承载业务开发。
 
 CLI 的基本用法：
 
@@ -51,25 +54,27 @@ godot-mcp get_current_scene
 如果 Godot 编辑器未打开，或插件未启用，大多数工具会无法连接。先打开本项目 `project.godot`，确认插件 `Godot MCP` 启用，再运行 CLI。
 
 全局注意事项：
+
 - 对需要数组或对象参数的工具，优先使用 `--params-json` 传参；直接把数组写成普通字符串可能会触发 MCP 参数校验失败。
 - 已知需要这样处理的工具包括 `simulate_input_sequence` 的 `sequence` 参数。
-- 根 Comedot 仓库通过 `.gitignore` 有意忽略 `Game/`。`Game/` 下的具体游戏项目按独立 Git 仓库管理，AI 自动化流程要保持框架仓库与游戏仓库分离。
+- 根 Comedot 仓库通过 `.gitignore` 有意忽略 `Game/`。`Game/` 下若挂载具体游戏项目，按独立 Git 仓库管理，AI 自动化流程要保持框架仓库与游戏仓库分离。
 - 框架任务不需要每次用根仓库 `git status` 检查 `Game/` 状态；只有在需要确认框架层文件变化时才检查根仓库 Git 状态。游戏任务若需要 Git 状态，应在对应游戏子仓库中检查。
-- 当前置规则：当本项目需求需要 Godot 引擎交互时，包括编辑器状态、场景、节点、项目运行、调试器、输出 / 错误面板、运行时输入，或用户输入 `测试xx` / `测试<something>`，先读取本文档，并把 `godot-mcp-cli` 作为项目专用 skill / 工具流程优先调用。
-- 使用 Godot MCP 进行操作、实现需求或测试时，可参考 `addons/godot_mcp/commands/` 下的本地命令处理器作为 Godot 侧能力来源；实际执行优先通过 `godot-mcp-cli` 暴露的对应工具完成。
+- 前置规则：当本项目需求需要 Godot 引擎交互时，包括编辑器状态、场景、节点、项目运行、调试器、输出/错误面板、运行时输入，或用户输入 `测试xx` / `测试<something>`，先读取本文档，并把 `godot-mcp-cli` 作为项目专用 skill / 工具流程优先调用。
+- 使用 Godot MCP 进行操作、实现需求或测试时，可参考 `addons/godot_mcp/commands/` 下的本地命令处理器作为 Godot 侧能力来源；实际执行优先通过 CLI 暴露的对应工具完成。
 - 进行输入操作、节点创建、场景操作、实现需求、测试和验收时，优先映射到 `addons/godot_mcp/commands/` 中的对应处理器：
 	- `input_commands.gd`：鼠标、键盘、InputMap action、输入序列模拟。
-	- `node_commands.gd`：创建节点、删除节点、读取 / 修改节点属性、列出子节点。
+	- `node_commands.gd`：创建节点、删除节点、读取/修改节点属性、列出子节点。
 	- `scene_commands.gd`：创建、打开、保存、重载、删除场景，以及读取当前场景结构。
 	- `project_commands.gd`：运行项目、运行当前场景、运行指定场景、停止运行、读取项目信息。
-	- `debugger_commands.gd`：断点、暂停 / 恢复、单步、调试器状态、调用栈相关操作。
+	- `debugger_commands.gd`：断点、暂停/恢复、单步、调试器状态、调用栈相关操作。
 	- `editor_commands.gd`、`editor_script_commands.gd`：编辑器状态、资源创建、文件系统重扫、编辑器脚本执行。
 	- `script_commands.gd`：脚本创建、读取、编辑与当前脚本查询。
-	- `mcp_enhanced_commands.gd`：编辑器 / 运行时场景结构、输出 / 错误面板、运行时表达式、调试输出流。
+	- `mcp_enhanced_commands.gd`：编辑器/运行时场景结构、输出/错误面板、运行时表达式、调试输出流。
 	- `mcp_asset_commands.gd`：项目文件与资源类型查询。
-- 对移动、交互、攻击、UI 点击等运行时行为测试，要善用 `input_commands.gd` 对应能力：优先选择项目 InputMap action（如移动、确认、攻击、交互），必要时组合键盘按键、鼠标点击 / 拖拽和 `simulate_input_sequence` 输入序列来还原玩家操作。
+- 对移动、交互、攻击、UI 点击等运行时行为测试，要善用 `input_commands.gd` 对应能力：优先选择项目 InputMap action（如移动、确认、攻击、交互），必要时组合键盘按键、鼠标点击/拖拽和 `simulate_input_sequence` 输入序列来还原玩家操作。
 
 当前实测注意事项：
+
 - `get_runtime_scene_structure` 和 `evaluate_runtime_expression` 在运行中场景较忙、连接切换、或调试会话状态不稳定时可能超时。它们适合辅助观察，但不要把它们作为行为验收的唯一证据。
 - 对输入、移动、交互等行为测试，优先让测试场景打印明确、低噪声的运行时状态，例如位置、状态机状态、接受到的 action intent。再用 `get_debug_output` 读取 Output 面板确认结果。
 - 输入测试结束后用 `stop_running_project` 停止场景，避免旧运行实例影响下一次测试。
@@ -81,30 +86,31 @@ CLI 自动化必须遵守本项目分层：
 
 ```text
 Game/ 外 = Comedot framework layer
-Game/Cd_ProjectZero/ 内 = 当前游戏 layer
+Game/ 内 = 当前仅承载 Example 闭环示例（业务开发在独立业务仓）
 ```
 
 默认策略：
-- 只读巡检可以覆盖框架层与游戏层，但忽略 `Temporary/` 和 `Lab/`。
-- 游戏功能开发优先修改 `Game/Cd_ProjectZero/`。
+
+- 只读巡检可以覆盖框架层与 Game 层，但忽略 `Temporary/` 和 `Lab/`。
+- 游戏业务开发（如武侠项目）在独立业务仓 `Comedot_GDGameProjWuXia` 进行，不在本仓。
 - 框架层改动只在修复框架 bug、增加可复用能力、或需要小型扩展点时进行。
-- 若修改 `Game/` 外框架文件，需要记录到 `Game/Cd_ProjectZero/Docs/FrameworkUpgradeNotes.md`。
-- 若修改启动流程，需要同步更新 `Game/Cd_ProjectZero/Docs/StartupFlow.md`。
-- 若游戏方向、范围、里程碑或项目决策变化，需要更新 `Game/Cd_ProjectZero/Docs/ProjectPrompt.md`。
+- 若修改启动流程，需同步更新 `docs/learning-guide.md`（启动章节）与 `docs/best-practices.md`（启动流程节）。
+- 框架改动后，用 `Game/Example` 回归链路做最小验证（见 `Game/AGENTS.override.md` 的标记约定）。
 
 代码与场景生成规则：
+
 - 组件必须是 `.tscn` + `.gd` 成对存在。
 - 组件脚本必须继承 `Components/Component.gd` 或其子类。
 - 组件根节点加入 `components` group。
 - Entity 根节点加入 `entities` group。
-- 游戏专属组件放在 `Game/Cd_ProjectZero/Components/`。
-- 游戏专属资源、脚本、场景、测试分别放入 `Game/Cd_ProjectZero/Resources/`、`Scripts/`、`Scenes/`、`Tests/`。
+- 游戏专属组件放在 `Game/<游戏>/Components/`（本仓现为 `Game/Example/`；业务仓为各自路径）。
+- 游戏专属资源、脚本、场景、测试分别放入对应 `Game/<游戏>/` 子目录。
 - GDScript 使用 Tab 缩进、camelCase、显式类型，按附近文件风格写。
 
 
 ## Instruction And Markdown Analysis Summary
 
-本次已扫描项目内 Markdown 与 instruction 文件，排除 `Temporary/`、`Lab/` 和 `.git/`。没有发现项目级 `SKILL.md` 或 `*.skill.md` 文件。
+已扫描项目内 Markdown 与 instruction 文件，排除 `Temporary/`、`Lab/` 和 `.git/`。没有发现项目级 `SKILL.md` 或 `*.skill.md` 文件。
 
 对 CLI 自动化最重要的本地指令文件：
 
@@ -115,16 +121,12 @@ Game/Cd_ProjectZero/ 内 = 当前游戏 layer
 | `.github/prompt-guide.md` | 提示模板、任务边界声明、代码审查和游戏实现模板 |
 | `Conventions.md` | 命名、缩进、类型、文件结构、注释与设计约束 |
 | `HowTo.md` | 组件/实体用法、添加组件、创建组件、常见问题 |
-| `_Doc/BestPractices.md` | 框架层最佳实践、启动流程、验证流程 |
-| `Game/AGENTS.override.md` | `Game/` 子树优先规则 |
-| `Game/Cd_ProjectZero/Docs/ProjectPrompt.md` | 当前游戏方向、范围、约束和优先事项 |
-| `Game/Cd_ProjectZero/Docs/ProjectMap.md` | 游戏目录归属与框架边界 |
-| `Game/Cd_ProjectZero/Docs/StartupFlow.md` | 当前游戏启动链路 |
+| `docs/best-practices.md` | 框架层实践、启动流程、验证流程 |
+| `docs/learning-guide.md` | 启动流程与 AutoLoad/Debug 笔记 |
+| `docs/architecture-asbuilt.md` | as-built 架构实扫（模块依赖、风险清单） |
+| `Game/AGENTS.override.md` | `Game/` 子树优先规则、Example 回归标记约定 |
 
-与当前游戏方向相关的 Markdown 集中在 `Game/Cd_ProjectZero/Docs/`：
-- `Gameplay/GameplayDesign.md` 定义江湖沙盒 RPG 的核心循环、战斗、经济、生活技和垂直切片目标。
-- `WorldModel/` 下文档定义世界状态、区域、商路、势力、事件、关键 agent、调试与实现清单。
-- 这些文档适合作为 AI 通过 CLI 自动化生成场景、测试和原型前的上下文，但不应让 CLI 直接无边界地批量创建框架层文件。
+> 注：原表引用的 `Game/Cd_ProjectZero/Docs/` 文档（`ProjectPrompt.md`、`ProjectMap.md`、`StartupFlow.md`、`GameplayDesign.md`、`WorldModel/` 等）已随业务迁出至业务仓，不再存在于本仓。
 
 
 ## Safety Levels
@@ -139,6 +141,7 @@ Game/Cd_ProjectZero/ 内 = 当前游戏 layer
 | Dangerous | 删除、重载、任意代码执行 | `delete_node`, `delete_scene`, `reload_scene`, `execute_editor_script` | 仅在明确指令和已知影响范围下使用 |
 
 特别注意：
+
 - `reload_scene` 会丢弃未保存改动。
 - `reload_project` 会重启 Godot 编辑器并断开 MCP 连接。
 - `execute_editor_script` 可以在编辑器上下文执行任意 GDScript，应视为高风险工具。
@@ -167,7 +170,7 @@ godot-mcp get_runtime_scene_structure --include_scripts true --max_depth 4 --tim
 如果要修改场景：
 
 ```powershell
-godot-mcp open_scene --path "res://Game/Cd_ProjectZero/Scenes/Levels/MyGameMain.tscn"
+godot-mcp open_scene --path "res://Game/Example/ExampleScene.tscn"
 godot-mcp get_editor_scene_structure --include_properties true --include_scripts true --max_depth 5
 ```
 
@@ -179,7 +182,7 @@ godot-mcp rescan_filesystem
 godot-mcp get_editor_errors
 ```
 
-如果任务修改了框架层文件，再用根仓库 Git 检查实际文件变化。`Game/` 由独立子仓库管理，不要用根仓库状态判断游戏文件：
+如果任务修改了框架层文件，再用根仓库 Git 检查实际文件变化。`Game/` 由独立子仓库/边界管理，不要用根仓库状态判断游戏文件：
 
 ```powershell
 git status --short
@@ -221,15 +224,16 @@ godot-mcp get_editor_scene_structure --include_scripts true --max_depth 4
 | `delete_scene` | 删除场景文件 | `--path` |
 
 本项目建议：
-- 新游戏场景优先放在 `Game/Cd_ProjectZero/Scenes/`。
-- 新手动测试场景优先放在 `Game/Cd_ProjectZero/Tests/`。
-- 框架测试才放根目录 `Tests/`。
+
+- 框架回归/示例场景放在 `Game/Example/`。
+- 框架测试场景放根目录 `Tests/`。
+- 业务场景在业务仓各自的 `Scenes/` 与 `Tests/` 下。
 
 示例：
 
 ```powershell
-godot-mcp create_scene --path "res://Game/Cd_ProjectZero/Scenes/Levels/PrototypeMarket.tscn" --root_node_type Node2D
-godot-mcp open_scene --path "res://Game/Cd_ProjectZero/Scenes/Levels/PrototypeMarket.tscn"
+godot-mcp create_scene --path "res://Game/Example/PrototypeScene.tscn" --root_node_type Node2D
+godot-mcp open_scene --path "res://Game/Example/PrototypeScene.tscn"
 godot-mcp save_scene
 ```
 
@@ -245,6 +249,7 @@ godot-mcp save_scene
 | `list_nodes` | 列出某父节点下的子节点 | `--parent_path` |
 
 本项目建议：
+
 - 添加 Comedot 组件时，优先实例化已有 `.tscn` 组件场景，而不是只创建裸节点。
 - `create_node` 适合创建普通 Godot 节点、UI 节点、容器节点、占位节点。
 - 对组件根节点，必须补齐 `components` group 和脚本继承关系。
@@ -270,16 +275,16 @@ godot-mcp get_node_properties --node_path "./EncounterRoot"
 | `create_resource` | 创建 Godot Resource | `--resource_type`, `--resource_path`, `--properties` |
 
 本项目建议：
+
 - 对非平凡脚本编辑，优先在文件系统中按项目规范修改，再用 `rescan_filesystem`。
 - `edit_script` 是整文件覆盖式工具，使用前先 `get_script` 或读取文件，避免覆盖用户改动。
-- 游戏专属脚本优先放在 `Game/Cd_ProjectZero/Scripts/` 或对应组件目录。
-- 游戏专属数据资源优先放在 `Game/Cd_ProjectZero/Resources/`。
+- 游戏专属脚本放在对应游戏目录（本仓 `Game/Example/`；业务仓各自结构）。
 
 示例：
 
 ```powershell
-godot-mcp get_script --script_path "res://Game/Cd_ProjectZero/Scripts/Boot/MyGameStart.gd"
-godot-mcp create_resource --resource_type Resource --resource_path "res://Game/Cd_ProjectZero/Resources/PrototypeData.tres" --properties "{}"
+godot-mcp get_script --script_path "res://Game/Example/ExampleScene.gd"
+godot-mcp create_resource --resource_type Resource --resource_path "res://Game/Example/PrototypeData.tres" --properties "{}"
 ```
 
 
@@ -293,6 +298,7 @@ godot-mcp create_resource --resource_type Resource --resource_path "res://Game/C
 | `execute_editor_script` | 在编辑器上下文执行 GDScript | `--code` |
 
 建议：
+
 - 文件系统外部改动后用 `rescan_filesystem`。
 - `reload_scene` 前确认没有需要保留的未保存编辑器改动。
 - `execute_editor_script` 只用于缺少专用工具且目标可精确描述的自动化。
@@ -301,7 +307,7 @@ godot-mcp create_resource --resource_type Resource --resource_path "res://Game/C
 
 ```powershell
 godot-mcp rescan_filesystem
-godot-mcp reload_scene --scene_path "res://Game/Cd_ProjectZero/Scenes/Levels/MyGameMain.tscn"
+godot-mcp reload_scene --scene_path "res://Game/Example/ExampleScene.tscn"
 ```
 
 
@@ -319,10 +325,11 @@ godot-mcp reload_scene --scene_path "res://Game/Cd_ProjectZero/Scenes/Levels/MyG
 | `get_editor_errors` | 读取 Errors 面板 | none |
 | `clear_editor_errors` | 清空 Errors 面板 | none |
 
-本项目启动入口：
-- `Game/override.cfg` 将运行主场景指向 `Game/Cd_ProjectZero/Scenes/Boot/MyGameStart.tscn`。
-- `MyGameStart.gd` 应继续继承 `Start`。
-- 主游戏场景目前是 `Game/Cd_ProjectZero/Scenes/Levels/MyGameMain.tscn`。
+本项目启动入口（as-built 实况）：
+
+- `project.godot` 主场景 → `Scenes/Launch/Logo/IOLogoScene.tscn`。
+- `Game/override.cfg` 将运行主场景覆盖为 `res://Game/Example/ExampleScene.tscn`。
+- 业务仓的启动入口以其 `override.cfg` / 文档为准。
 
 示例：
 
@@ -333,10 +340,10 @@ godot-mcp get_editor_errors
 godot-mcp stop_running_project
 ```
 
-运行指定游戏场景：
+运行指定场景：
 
 ```powershell
-godot-mcp run_specific_scene --scene_path "res://Game/Cd_ProjectZero/Scenes/Levels/MyGameMain.tscn"
+godot-mcp run_specific_scene --scene_path "res://Game/Example/ExampleScene.tscn"
 ```
 
 
@@ -363,7 +370,7 @@ godot-mcp run_specific_scene --scene_path "res://Game/Cd_ProjectZero/Scenes/Leve
 示例：
 
 ```powershell
-godot-mcp debugger_set_breakpoint --script_path "res://Game/Cd_ProjectZero/Scripts/Boot/MyGameStart.gd" --line 12
+godot-mcp debugger_set_breakpoint --script_path "res://Game/Example/ExampleScene.gd" --line 12
 godot-mcp run_project
 godot-mcp debugger_get_current_state
 godot-mcp debugger_get_call_stack
@@ -381,7 +388,7 @@ godot-mcp evaluate_runtime_expression --expression "get_tree().current_scene.nam
 
 ### Runtime Input Simulation
 
-这些工具依赖项目运行中，并且当前项目已经注册 `MCPInputHandler` AutoLoad。
+这些工具依赖项目运行中，且 `MCPInputHandler` AutoLoad 已注册（由 MCP 插件自动注册；首次注册后需重启游戏运行实例）。
 
 | Command | Purpose | Important Parameters |
 | --- | --- | --- |
@@ -411,19 +418,20 @@ godot-mcp simulate_input_sequence --params-json '{"sequence":[{"type":"tap","act
 ```
 
 自动化验证建议：
+
 - 先运行目标场景。
 - 使用 `get_runtime_scene_structure` 确认目标 UI 或玩家节点已存在。
 - 输入模拟后读取 `get_debug_output` 和 `get_editor_errors`。
 - 对 Comedot 组件调试，优先启用组件 `debugMode` 或使用 `Debug` AutoLoad 输出。
 - 如果运行时树或表达式查询超时，改用测试脚本日志作为证据，不要反复阻塞在同一个查询上。
 
-键盘移动测试参考流程：
+键盘移动测试参考流程（以 Example 回归为例）：
 
 ```powershell
 godot-mcp rescan_filesystem
 godot-mcp clear_debug_output
 godot-mcp clear_editor_errors
-godot-mcp run_specific_scene --scene_path "res://Game/Cd_ProjectZero/Tests/Manual/Player/M9PlayerControlTest.tscn"
+godot-mcp run_specific_scene --scene_path "res://Game/Example/ExampleScene.tscn"
 ```
 
 如果测试场景会自动跑验收，先等待短时间后清空 Output，再执行单独的键盘输入：
@@ -436,14 +444,7 @@ godot-mcp get_editor_errors
 godot-mcp stop_running_project
 ```
 
-对玩家移动这类连续行为，测试脚本建议监听实际运动组件的移动信号并打印位置变化。例如 M9 中监听 `CharacterBodyComponent.didMove`，输出类似：
-
-```text
-M9 movement event | position (276.0, 240.0)
-M9 movement event | position (491.5002, 240.0)
-```
-
-这类输出比单次运行时表达式更适合作为键盘输入已驱动移动链路的证据。
+对玩家移动这类连续行为，测试脚本建议监听实际运动组件的移动信号并打印位置变化（例如监听 `CharacterBodyComponent.didMove` 输出位置行）。这类输出比单次运行时表达式更适合作为"键盘输入已驱动移动链路"的证据。
 
 
 ## Current CLI Commands By Risk
@@ -527,11 +528,11 @@ debugger_clear_all_breakpoints
 godot-mcp get_project_info
 godot-mcp list_assets_by_type --type scenes
 godot-mcp list_assets_by_type --type scripts
-godot-mcp open_scene --path "res://Game/Cd_ProjectZero/Scenes/Levels/MyGameMain.tscn"
+godot-mcp open_scene --path "res://Game/Example/ExampleScene.tscn"
 godot-mcp get_editor_scene_structure --include_scripts true --include_properties true --max_depth 5
 ```
 
-Use this before planning a `Game/Cd_ProjectZero/` feature.
+Use this before planning a `Game/Example/` change or a framework-layer change.
 
 
 ### 2. Run The Game And Read Diagnostics
@@ -551,12 +552,12 @@ godot-mcp get_runtime_scene_structure --include_scripts true --max_depth 5 --tim
 ```
 
 
-### 3. Add A Game-Specific Prototype Scene
+### 3. Add A Prototype Scene
 
 ```powershell
-godot-mcp create_scene --path "res://Game/Cd_ProjectZero/Scenes/Levels/PrototypeRouteEncounter.tscn" --root_node_type Node2D
-godot-mcp open_scene --path "res://Game/Cd_ProjectZero/Scenes/Levels/PrototypeRouteEncounter.tscn"
-godot-mcp create_node --parent_path "." --node_type Node2D --node_name "EncounterRoot"
+godot-mcp create_scene --path "res://Game/Example/PrototypeScene.tscn" --root_node_type Node2D
+godot-mcp open_scene --path "res://Game/Example/PrototypeScene.tscn"
+godot-mcp create_node --parent_path "." --node_type Node2D --node_name "Root"
 godot-mcp save_scene
 godot-mcp rescan_filesystem
 ```
@@ -566,45 +567,41 @@ After this, use normal file edits for non-trivial scripts so indentation, commen
 
 ### 4. Add Or Verify A Manual Test Scene
 
-Game-specific tests should be under:
-
-```text
-Game/Cd_ProjectZero/Tests/
-```
-
 Framework tests should be under:
 
 ```text
 Tests/
 ```
 
+Business-repo tests live in the business repository's own `Tests/`.
+
 Example:
 
 ```powershell
-godot-mcp create_scene --path "res://Game/Cd_ProjectZero/Tests/WorldModelSmokeTest.tscn" --root_node_type Node
-godot-mcp open_scene --path "res://Game/Cd_ProjectZero/Tests/WorldModelSmokeTest.tscn"
+godot-mcp create_scene --path "res://Tests/MyFeatureTest.tscn" --root_node_type Node
+godot-mcp open_scene --path "res://Tests/MyFeatureTest.tscn"
 godot-mcp save_scene
 ```
 
 
 ### 5. Debug A Startup Problem
 
-Project startup chain to remember:
+Project startup chain to remember (as-built 实况):
 
 ```text
-project.godot
--> Game/override.cfg
--> Game/Cd_ProjectZero/Scenes/Boot/MyGameStart.tscn
--> Game/Cd_ProjectZero/Scripts/Boot/MyGameStart.gd
--> Scripts/Start.gd
--> GameState.startMainScene()
--> Game/Cd_ProjectZero/Scenes/Levels/MyGameMain.tscn
+project.godot (run/main_scene)
+-> Scenes/Launch/Logo/IOLogoScene.tscn (LogoSceneIO extends Node2D)
+-> SceneManager.transitionToScene -> Scenes/Launch/GameFrame.tscn
+-> GameState.startMainScene() (Settings.mainGameScenePath)
+-> Game/override.cfg 覆盖为 res://Game/Example/ExampleScene.tscn
 ```
+
+> 注：上游协议中的 `Scripts/Start.gd` 启动链在本 fork 不存在（fork 漂移，详见 `architecture-asbuilt.md` §2.3）。
 
 Useful commands:
 
 ```powershell
-godot-mcp open_scene --path "res://Game/Cd_ProjectZero/Scenes/Boot/MyGameStart.tscn"
+godot-mcp open_scene --path "res://Scenes/Launch/GameFrame.tscn"
 godot-mcp get_editor_scene_structure --include_scripts true --include_properties true --max_depth 4
 godot-mcp run_project
 godot-mcp get_debug_output
@@ -614,7 +611,7 @@ godot-mcp get_editor_errors
 If a breakpoint is needed:
 
 ```powershell
-godot-mcp debugger_set_breakpoint --script_path "res://Game/Cd_ProjectZero/Scripts/Boot/MyGameStart.gd" --line 1
+godot-mcp debugger_set_breakpoint --script_path "res://AutoLoad/SceneManager.gd" --line 1
 godot-mcp run_project
 godot-mcp debugger_get_current_state
 ```
@@ -622,7 +619,7 @@ godot-mcp debugger_get_current_state
 
 ## Plugin Internal Commands Not Exposed By Current CLI
 
-The current `addons/godot_mcp/mcp_enhanced_commands.gd` includes internal handlers such as:
+当前 `addons/godot_mcp/mcp_enhanced_commands.gd` 包含内部处理函数，例如：
 
 ```text
 update_node_transform
@@ -631,39 +628,23 @@ subscribe_debug_output
 unsubscribe_debug_output
 ```
 
-But current `godot-mcp --list-tools` exposes:
+但当前 `godot-mcp --list-tools` 暴露的是：
 
 ```text
 evaluate_runtime_expression
 stream_debug_output
 ```
 
-and does not expose `update_node_transform` as a CLI tool. Use the CLI list as the automation truth.
+且不暴露 `update_node_transform` 作为 CLI 工具。以 CLI 列表为自动化事实标准。
 
 
 ## MCP Client Configuration Note
 
-Current `.ai/mcp/mcp.json` contains:
+本项目 `.mcp.json`（仓库根）注册了 `godot-mcp`（stdio）。
 
-```json
-{
-  "mcpServers": {
-    "godot-mcp": {
-      "command": "node",
-      "args": [
-        "index.js"
-      ],
-      "env": {
-        "MCP_TRANSPORT": "stdio"
-      }
-    }
-  }
-}
-```
+若客户端从其他工作目录启动，优先使用构建产物入口的绝对路径，或使用该客户端所期望的已安装 CLI/服务命令。
 
-Verify that `index.js` resolves correctly for the client that reads this config. If the client starts from another working directory, prefer an absolute path to the built server entry, or use the installed CLI/server command expected by that client.
-
-For direct CLI automation inside this repo, use:
+对于本仓库内的直接 CLI 自动化，使用：
 
 ```powershell
 godot-mcp --list-tools
@@ -676,21 +657,15 @@ godot-mcp <tool> [--flag value]
 Before editing through CLI:
 
 ```text
-1. Confirm whether the task targets framework code or Game/Cd_ProjectZero.
-2. Read ProjectPrompt.md for Game tasks.
+1. Confirm whether the task targets framework code or Game/ (Example only in this repo).
+2. For business gameplay work, switch to the business repository.
 3. Open or inspect the exact target scene.
 4. Prefer read-only structure and property queries first.
 5. Avoid delete/reload/execute_editor_script unless explicitly required.
 6. Save the scene only after checking the intended changes.
 7. Run project or target scene when behavior changed.
 8. Read Output and Errors panels.
-9. If framework files changed, check root repository Git status. If only `Game/` changed, use that game project's own Git workflow when needed.
-```
-
-For current game development, the default target should be:
-
-```text
-Game/Cd_ProjectZero/
+9. If framework files changed, check root repository Git status. If Game/ content changed, use that subtree's own Git workflow.
 ```
 
 For reusable Comedot framework development, state the framework target explicitly before using write commands outside `Game/`.
