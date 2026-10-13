@@ -4,7 +4,7 @@ set "scriptDir=%~dp0"
 set WORKSPACE=%scriptDir%\..
 set GAME_WORKSPACE=%WORKSPACE%\Game
 set GAME_CONFIG_WORKSPACE=%GAME_WORKSPACE%\_ConfigTables
-set GAME_NAME=Cd_ProjectZero
+set GAME_NAME=MyGame
 set GAME_ROOT=%GAME_WORKSPACE%\%GAME_NAME%
 
 set LUBAN_DLL=%scriptDir%Luban\Release\Luban.dll
