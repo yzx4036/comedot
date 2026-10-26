@@ -48,7 +48,7 @@ var isOnCooldown: bool:
 	get: return not is_zero_approx(self.time_left) # Apparently `not is_zero_approx()` is better than checking > 0
 
 ## Allows [method startCooldown] to ignore the cooldown ONCE; the function will return without starting the [Timer]
-## IMPORTANT: This flag is always reset in [method startCooldown], so it must be set AFTER starting a cooldown.
+## IMPORTANT: This flag is reset in [method startCooldown] so it must be set AFTER starting a cooldown.
 @export_storage var shouldSkipNextCooldown:		 bool
 
 ## Enabled by [method startCooldown] to make sure repeated calls to [method onTimeout] don't emit redundant [signal didFinishCooldown] signals.
@@ -71,19 +71,17 @@ func _ready() -> void:
 
 #region Cooldown
 
-## Starts the cooldown delay, using [member cooldownSeconds] as the default for [param overrideTime] and emits [signal didStartCooldown].
-## If this [Timer] is already running and [member Timer.paused], this method unpauses the [Timer].
+## Starts the cooldown delay, using [member cooldownSeconds] as the default for [param overrideTime] and emits [signal didStartCooldown]
+## If this [Timer] is already running and [member Timer.paused], this method unpauses the [Timer]
 ## If [param restartIfOnCooldown] then an ongoing OR pause cooldown is restarted.
 ## Returns the [member Timer.time_left] if a cooldown was started or already running.
-## Returns 0 if [member shouldSkipNextCooldown] or if [member cooldownSeconds] or [param overrideTime] is < [constant godotMinimumTime] 0.05 then this call is ignored.
+## Returns 0 if [member shouldSkipNextCooldown] or if the requested cooldown is < 0.05, and existing cooldownds are cancelled if [param restartIfOnCooldown]
 ## Returns -1 if the state is invalid.
 ## TIP: Check [member isOnCooldown] before calling this method to avoid redundant processing or restarts.
 ## IMPORTANT: Do NOT use the standard [method Timer.start] because the default Godot [Timer] is of course unware of [member cooldownMilliseconds]
 func startCooldown(overrideTime: float = self.cooldownSeconds, restartIfOnCooldown: bool = false) -> float:
 	# TBD: PERFORMANCE: Do we really need all this crap just for a simple Timer.start()?
 	# Or could the `didStartCooldown` signal be helpful in chaining with other components e.g. for animations etc.?
-
-	if overrideTime < godotMinimumTime: return 0
 
 	if  not self.is_node_ready() or not self.is_inside_tree():
 		Debug.printDebug("startCooldown(): Timer node not ready", self)
@@ -92,16 +90,26 @@ func startCooldown(overrideTime: float = self.cooldownSeconds, restartIfOnCooldo
 	if  debugMode:
 		Debug.printDebug(str("startCooldown() previous wait_time: ", self.wait_time, " → overrideTime: ", overrideTime, " + cooldownMilliseconds: ", (cooldownMilliseconds.logName if cooldownMilliseconds else "null"), ", minimumCooldown: ", minimumCooldown, ", shouldSkipNextCooldown: ", shouldSkipNextCooldown), self)
 
+	# DESIGN: An existing cooldown must be handled before deciding whether to start a new cooldown.
+
 	# Check for an ongoing cooldown to avoid unintended resets or redundant processing
 	if  self.isOnCooldown:
 		if debugMode: Debug.printDebug(str("CooldownTimer already isOnCooldown: ", self.time_left, " paused: ", self.paused), self)
 		if self.paused: self.paused = false # Unpause because running a Timer would be the behavior expected by the caller
 		if not restartIfOnCooldown: return self.time_left
 
+	# DESIGN: If the delay is too short, skip/cancel the cooldown
+	# NOTE: Don't check for `isOnCooldown` when calling cancelCooldown() so we can clear state such as `shouldEmitDidFinishCooldown` etc. 
+	if  overrideTime < godotMinimumTime:
+		if debugMode: Debug.printDebug(str("startCooldown() skipping/cancelling overrideTime: ", overrideTime, " < godotMinimumTime: ", godotMinimumTime), self)
+		cancelCooldown()
+		return 0
+
 	# IMPORTANT: Check for skip AFTER checking for a running cooldown,
 	# because "consuming" `shouldSkipNextCooldown` and then cancelling would prevent the ACTUAL next cooldown from being skipped.
 	if  shouldSkipNextCooldown:
 		shouldSkipNextCooldown = false
+		cancelCooldown()
 		return 0 # TBD: Use different values?
 
 	var  clampedTime:  float = maxf(minimumCooldown, overrideTime)
