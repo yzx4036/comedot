@@ -110,9 +110,12 @@ check_framework_layer() {
 	fi
 
 	# 框架仓远端布局
-	local url=""
+	local url="" is_framework_source=0
 	if url=$(git -C "$PROJECT" remote get-url origin 2>/dev/null); then
 		pass "框架仓 origin: $url"
+		case "$url" in
+			*/comedot.git|*/comedot) is_framework_source=1 ;;
+		esac
 	else
 		fail "框架仓缺少 origin 远端"
 	fi
@@ -125,6 +128,8 @@ check_framework_layer() {
 		else
 			warn "upstream 未禁用推送：建议 git config remote.upstream.pushurl \"DISABLED-upstream-is-read-only\""
 		fi
+	elif [ "$is_framework_source" = "1" ]; then
+		pass "本仓即框架源仓（origin 指向 comedot），不要求 upstream"
 	else
 		fail "框架仓缺少 upstream 远端（无法拉框架更新）"
 	fi

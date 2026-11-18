@@ -44,6 +44,15 @@ _ToolScript/
 
 好处：框架根的 `ComedotProjectSettings.tres` 保持上游原样（上游改它也不会串到游戏），游戏设置全在 Game 层。
 
+### 两种合法变体
+
+| 变体 | 做法 | 生成者 |
+|---|---|---|
+| A 框架启动链 | `override.cfg` **不写** `run/main_scene`，玩家先看框架 Logo + 主菜单，Start 进游戏 | `new_project.sh`（新版默认） |
+| B 游戏自己的启动画面 | `override.cfg` 覆盖 `run/main_scene` 指向 `Game/<项目>/Scenes/Boot/*Start.tscn`，该脚本是**普通 `Control`**（只做标题 + Start 按钮），主场景仍走 `Game/ComedotProjectSettings.tres` | 编辑器插件 `addons/Comedot/GameProjectInitializer.gd`；现有 <Proj> 项目采用此变体 |
+
+两种变体都**不需要** `extends Start`。
+
 ## 用法
 
 ### 新建项目

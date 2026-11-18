@@ -188,7 +188,7 @@ Global → Settings → Debug → SceneManager → GlobalInput → GameState →
 - **`Settings` 早于正常场景启动**：`Settings` 在 `NOTIFICATION_PARENTED` 阶段即加载 `user://…Settings.cfg` 与项目覆盖，早于 `_enter_tree()`/`_ready()`。启动代码可以提前读取设置，不必等待 `Settings._ready()`。
 - **早期日志**：AutoLoad 生命周期日志应使用 `Debug.printAutoLoadLog()`（见 §10）。
 - **框架检查**：`Debug.performFrameworkChecks()` 检查 `Global.hasStartScript` 是否被设置；本 fork 无 Start 脚本，该提示会以警告形式出现——**属已知漂移，非故障**。
-- 新项目若采用上游协议（`addons/Comedot/GameProjectInitializer.gd` 生成的 `Scripts/Boot/*Start.gd` 骨架），子类的 `_enter_tree()` 与 `_ready()` 必须调用 `super`。
+- 新项目骨架由 `addons/Comedot/GameProjectInitializer.gd` 生成；启动脚本是普通 `Control`（不继承 `Start`，该类随上游 `af4bc065` 删除），主场景路径由 `Game/ComedotProjectSettings.tres` 提供。
 
 ---
 
@@ -318,7 +318,7 @@ MyGameScene (Node2D)
 ```
 
 - **本 fork 现况**：主场景由 `Game/override.cfg` 覆盖指向 `res://Game/Example/ExampleScene.tscn`；框架默认（`project.godot`）为 Logo 启动链。
-- **上游协议（本 fork 不适用）**：主场景根节点挂 `Scripts/Start.gd` 或 `extends Start` 的子类（Inspector 配置 `mainGameScenePath`、`musicFolder` 等）。若你的项目采用上游协议骨架（`Scripts/Boot/*Start.gd`），记得子类必须调用 `super`。
+- **启动脚本（现行）**：主场景根节点挂普通 `Control`/`Node2D` 脚本；主场景路径写在 `Game/ComedotProjectSettings.tres` 的 `mainGameScenePath`，由 `Game/override.cfg` 的 `comedot/settings/comedotProjectSettingsPath` 指过去。`Scripts/Start.gd` 已随上游 `af4bc065` 删除，**不要**写 `extends Start`。
 
 ### 5.6 场景切换
 

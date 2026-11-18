@@ -185,8 +185,10 @@ func initializeProject(projectFolderName: String, projectTitle: String, scriptPr
 	createFileIfMissing(projectRootPath.path_join("README.md"), createProjectReadme(projectFolderName, title))
 	createFileIfMissing(projectRootPath.path_join("Docs/README.md"), createDocsReadme(projectFolderName))
 	createFileIfMissing(bootScriptPath, createBootScript(title))
-	createFileIfMissing(bootScenePath, createBootScene(projectFolderName, title, scriptPrefix, bootScriptPath, mainScenePath))
+	createFileIfMissing(bootScenePath, createBootScene(projectFolderName, title, scriptPrefix, bootScriptPath))
 	createFileIfMissing(mainScenePath, createMainScene(projectFolderName, title, scriptPrefix))
+	# 启动契约：主场景路径放 Game 层 ComedotProjectSettings，由 override.cfg 指向它
+	createFileIfMissing(gameRootPath.path_join("ComedotProjectSettings.tres"), createProjectSettingsResource(mainScenePath))
 
 	if shouldUpdateOverride:
 		writeFile(gameRootPath.path_join("override.cfg"), createOverrideConfig(title, bootScenePath), true)
@@ -330,19 +332,28 @@ func createDocsReadme(projectFolderName: String) -> String:
 
 func createBootScript(title: String) -> String:
 	return "## Minimal starter boot scene for a game living inside `Game/`.\n" \
-		+ "## This keeps the framework boot isolated from game content and points `GameState.startMainScene()` to the real playable scene.\n\n" \
-		+ "extends Start\n\n\n" \
+		+ "## NOTE: `Scripts/Start.gd` was removed upstream (af4bc065), so this is a plain Control script.\n" \
+		+ "## The playable scene path comes from `Game/ComedotProjectSettings.tres` (mainGameScenePath).\n\n" \
+		+ "extends Control\n\n\n" \
 		+ "@export var titleText: String = \"" + quoteString(title) + "\"\n\n" \
 		+ "@onready var titleLabel: Label = $MarginContainer/VBoxContainer/TitleLabel\n" \
 		+ "@onready var startButton: Button = $MarginContainer/VBoxContainer/StartButton\n\n\n" \
 		+ "func _ready() -> void:\n" \
-		+ "\tsuper._ready()\n" \
-		+ "\ttitleLabel.text = titleText\n" \
-		+ "\tstartButton.pressed.connect(GameState.startMainScene)\n" \
-		+ "\tGlobalInput.isPauseShortcutAllowed = false\n"
+		+ "	titleLabel.text = titleText\n" \
+		+ "	startButton.pressed.connect(GameState.startMainScene)\n" \
+		+ "	GlobalInput.isPauseShortcutAllowed = false\n"
 
 
-func createBootScene(projectFolderName: String, title: String, scriptPrefix: String, bootScriptPath: String, mainScenePath: String) -> String:
+## Game 层的 ComedotProjectSettings 资源：只覆盖主场景路径，框架根的同名资源保持上游原样
+func createProjectSettingsResource(mainScenePath: String) -> String:
+	return "[gd_resource type=\"Resource\" script_class=\"ComedotProjectSettings\" format=3]\n\n" \
+		+ "[ext_resource type=\"Script\" path=\"res://addons/Comedot/ComedotProjectSettings.gd\" id=\"1_settings\"]\n\n" \
+		+ "[resource]\n" \
+		+ "script = ExtResource(\"1_settings\")\n" \
+		+ "mainGameScenePath = \"" + mainScenePath + "\"\n"
+
+
+func createBootScene(projectFolderName: String, title: String, scriptPrefix: String, bootScriptPath: String) -> String:
 	return "[gd_scene format=3]\n\n" \
 		+ "[ext_resource type=\"Script\" path=\"" + bootScriptPath + "\" id=\"1_start\"]\n" \
 		+ "[ext_resource type=\"Theme\" path=\"res://Assets/Themes/Comedot Default.tres\" id=\"2_theme\"]\n\n" \
@@ -354,7 +365,6 @@ func createBootScene(projectFolderName: String, title: String, scriptPrefix: Str
 		+ "grow_horizontal = 2\n" \
 		+ "grow_vertical = 2\n" \
 		+ "script = ExtResource(\"1_start\")\n" \
-		+ "mainGameScenePath = \"" + mainScenePath + "\"\n" \
 		+ "titleText = \"" + quoteString(title) + "\"\n\n" \
 		+ "[node name=\"ColorRect\" type=\"ColorRect\" parent=\".\"]\n" \
 		+ "layout_mode = 1\n" \
@@ -435,4 +445,6 @@ func createOverrideConfig(title: String, bootScenePath: String) -> String:
 		+ "; Keep this file at Game/ root because project.godot points to res://Game/override.cfg\n\n" \
 		+ "[application]\n" \
 		+ "config/name=\"" + quoteString(title) + "\"\n" \
-		+ "run/main_scene=\"" + bootScenePath + "\"\n"
+		+ "run/main_scene=\"" + bootScenePath + "\"\n\n" \
+		+ "[comedot]\n" \
+		+ "settings/comedotProjectSettingsPath=\"res://Game/ComedotProjectSettings.tres\"\n"

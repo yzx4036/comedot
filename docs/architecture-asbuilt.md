@@ -62,7 +62,7 @@ Settings.mainGameScenePath（框架默认取 run/main_scene；Game 层由 overri
 4. `GlobalSonic._ready()` 加载音频设置 + 音乐列表，`playInitialMusic.call_deferred()`。
 5. LOGO 场景 → GameFrame → 业务主场景。
 
-> ⚠️ **fork 漂移备注**：上游 `docs/best-practices.md` 描述存在 `Scripts/Start.gd`（`Start._enter_tree()→setupGameState()`、`_ready()→startComedot()/applyGlobalFlags()`），**本 fork 无该文件**（无 `Scripts/Boot/`）。启动职责实际由各 AutoLoad 自行完成；`Debug.performFrameworkChecks()` 依赖 `Global.hasStartScript` 属上游假设，本 fork 中相关启动提示会以警告形式出现。新项目脚本骨架由 `addons/Comedot/GameProjectInitializer.gd` 生成（`Scripts/Boot/*Start.gd`），本仓未走该路径。
+> ⚠️ **fork 漂移备注**：上游 `docs/best-practices.md` 描述存在 `Scripts/Start.gd`（`Start._enter_tree()→setupGameState()`、`_ready()→startComedot()/applyGlobalFlags()`），**本 fork 无该文件**（无 `Scripts/Boot/`）。启动职责实际由各 AutoLoad 自行完成；`Debug.performFrameworkChecks()` 依赖 `Global.hasStartScript` 属上游假设，本 fork 中相关启动提示会以警告形式出现。新项目脚本骨架由 `addons/Comedot/GameProjectInitializer.gd` 生成（普通 `Control` 启动脚本 + `Game/ComedotProjectSettings.tres` 启动契约），本仓未走该路径。
 
 ---
 

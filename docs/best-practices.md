@@ -54,7 +54,7 @@
 
 启动规则：
 
-- 若按上游协议创建 `extends Start` 的子类（例如新项目骨架由 `addons/Comedot/GameProjectInitializer.gd` 生成 `Scripts/Boot/*Start.gd`），覆写的 `_enter_tree()` 与 `_ready()` 必须调用 `super`。
+- **不要**创建 `extends Start` 的子类：`Scripts/Start.gd` 已被上游 `af4bc065` 删除。`addons/Comedot/GameProjectInitializer.gd` 生成的启动脚本现为普通 `Control`，主场景路径写在 `Game/ComedotProjectSettings.tres` 的 `mainGameScenePath`。
 - `Debug.performFrameworkChecks()` 依赖 `Global.hasStartScript`；本 fork 无 Start 脚本时该警告恒出现，属已知漂移而非故障。
 - AutoLoad 生命周期日志优先使用 `Debug.printAutoLoadLog()`，不要直接 `print()` 或普通调试日志。
 
