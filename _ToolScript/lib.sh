@@ -100,9 +100,60 @@ check_framework_anchor() {
 	return $missing
 }
 
-# 游戏仓是否已挂载在 $1/Game（Game/.git 存在）
+# 游戏仓是否已挂载在 $1/Game（Game/.git 存在）——双仓旧模型的判据
 game_repo_mounted() {
 	[ -d "$1/Game/.git" ] || [ -f "$1/Game/.git" ]
+}
+
+
+# region 布局识别（single = 单仓多业务；nested = 双仓旧模型）
+
+# 输出 single | nested | none
+project_layout() {
+	local dir=$1
+	if game_repo_mounted "$dir"; then
+		printf 'nested\n'
+	elif [ -d "$dir/$GAME_ROOT_REL" ]; then
+		printf 'single\n'
+	else
+		printf 'none\n'
+	fi
+}
+
+# 列出 Game/ 下的业务目录名（每个业务 = 一个同级目录）
+list_game_businesses() {
+	local dir=$1 path name
+	for path in "$dir/$GAME_ROOT_REL"/*/; do
+		[ -d "$path" ] || continue
+		name=${path%/}
+		name=${name##*/}
+		case "$name" in .*) continue ;; esac
+		printf '%s\n' "$name"
+	done
+}
+
+# 从 Game/override.cfg 推断当前激活的业务目录名
+active_game_business() {
+	local dir=$1 settings
+	settings=$(grep -m1 '^settings/comedotProjectSettingsPath=' "$dir/$GAME_OVERRIDE_REL" 2>/dev/null \
+		| sed -E 's/^[^=]+=["]?([^"]+)["]?[[:space:]]*$/\1/' || true)
+	[ -n "$settings" ] || return 1
+	printf '%s\n' "$settings" | sed -E 's|^res://Game/([^/]+)/.*$|\1|'
+}
+
+# 向上找项目根（只要求 project.godot，不限 Game/ 形态）
+find_project_root_any() {
+	local dir
+	dir=$(abs_dir ".")
+	[ -n "$dir" ] || return 1
+	while [ "$dir" != "/" ] && [ -n "$dir" ]; do
+		if [ -f "$dir/project.godot" ]; then
+			printf '%s\n' "$dir"
+			return 0
+		fi
+		dir=$(dirname "$dir")
+	done
+	return 1
 }
 
 # 从当前目录向上找项目根（同时有 project.godot 与 Game/.git）

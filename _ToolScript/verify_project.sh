@@ -23,6 +23,7 @@ PROJECT=""
 QUIET=0
 FAILS=0
 WARNS=0
+LAYOUT=""
 
 usage() {
 	cat <<'EOF'
@@ -99,14 +100,24 @@ check_framework_layer() {
 	if [ -f "$PROJECT/.gitignore" ] && grep -qxF "$FRAMEWORK_GAME_IGNORE_RULE" "$PROJECT/.gitignore"; then
 		pass ".gitignore 含 Game 边界规则: $FRAMEWORK_GAME_IGNORE_RULE"
 	else
-		fail ".gitignore 缺少 Game 边界规则: $FRAMEWORK_GAME_IGNORE_RULE （框架仓会吞掉游戏仓内容）"
+		pass ".gitignore 无 Game 忽略规则（单仓多业务模型下 Game/ 必须被跟踪）"
 	fi
 
-	# 边界实测：Game/ 下的东西必须被框架仓忽略
-	if git -C "$PROJECT" check-ignore -q -- "Game/override.cfg"; then
-		pass "边界实测: 框架仓忽略 Game/override.cfg"
+	# 模型相关的 Game/ 归属校验
+	if [ "$LAYOUT" = "nested" ]; then
+		if git -C "$PROJECT" check-ignore -q -- "Game/override.cfg"; then
+			pass "边界实测: 框架仓忽略 Game/override.cfg（双仓旧模型）"
+		else
+			fail "边界失效: 双仓旧模型下框架仓没有忽略 Game/override.cfg"
+		fi
 	else
-		fail "边界失效: 框架仓没有忽略 Game/override.cfg"
+		if git -C "$PROJECT" check-ignore -q -- "Game/override.cfg"; then
+			fail "Game/ 被 .gitignore 忽略（单仓模型要求跟踪）"
+		elif [ -z "$(git -C "$PROJECT" ls-files -- "$GAME_ROOT_REL" | head -1)" ]; then
+			fail "Game/ 下没有任何被跟踪文件（尚未 git add？）"
+		else
+			pass "Game/ 已被本仓跟踪（$(git -C "$PROJECT" ls-files -- "$GAME_ROOT_REL" | wc -l | tr -d ' ') 个文件）"
+		fi
 	fi
 
 	# 框架仓远端布局
@@ -135,6 +146,68 @@ check_framework_layer() {
 	fi
 }
 
+# 单仓多业务：每个 Game/<业务>/ 自成一体，override.cfg 指当前激活项
+check_single_repo_games() {
+	local games active game settings target other ref hits
+	printf '\n── 游戏业务（单仓多业务）─────────────────────────────\n'
+
+	games=$(list_game_businesses "$PROJECT")
+	if [ -z "$games" ]; then
+		warn "Game/ 下没有业务目录（用 _ToolScript/new_game.sh 建一个）"
+		return 0
+	fi
+
+	if [ ! -f "$PROJECT/$GAME_OVERRIDE_REL" ]; then
+		fail "缺少业务选择器: $GAME_OVERRIDE_REL"
+		return 0
+	fi
+
+	active=$(active_game_business "$PROJECT" 2>/dev/null || true)
+	if [ -z "$active" ]; then
+		fail "$GAME_OVERRIDE_REL 未指向任何业务的 ${GAME_PER_BUSINESS_SETTINGS}"
+	elif ! printf '%s\n' "$games" | grep -qxF "$active"; then
+		fail "override.cfg 指向的业务不存在: Game/${active}/"
+	else
+		pass "当前激活业务: Game/${active}/"
+	fi
+
+	local cfg_name
+	cfg_name=$(grep -m1 '^config/name=' "$PROJECT/$GAME_OVERRIDE_REL" | sed -E 's/^[^=]+=["]?([^"]+)["]?[[:space:]]*$/\1/' || true)
+	if [ -n "$cfg_name" ]; then
+		pass "override.cfg config/name: ${cfg_name}"
+	else
+		warn "override.cfg 未设置 config/name"
+	fi
+
+	for game in $games; do
+		settings="$PROJECT/$GAME_ROOT_REL/$game/$GAME_PER_BUSINESS_SETTINGS"
+		if [ ! -f "$settings" ]; then
+			fail "业务缺 ${GAME_PER_BUSINESS_SETTINGS}: Game/${game}/"
+			continue
+		fi
+		target=$(grep -m1 '^mainGameScenePath' "$settings" | sed -E 's/.*=[[:space:]]*"?([^"]+)"?[[:space:]]*$/\1/' || true)
+		if [ -z "$target" ]; then
+			warn "Game/${game}/ 的 ${GAME_PER_BUSINESS_SETTINGS} 未设 mainGameScenePath"
+		elif [ ! -f "$PROJECT/${target#res://}" ]; then
+			fail "Game/${game}/ 的 mainGameScenePath 指向不存在的场景: ${target}"
+		else
+			pass "Game/${game}/ mainGameScenePath 有效"
+		fi
+
+		# 业务隔离：不得引用其他业务目录
+		for other in $games; do
+			[ "$other" = "$game" ] && continue
+			hits=$(grep -rl --include='*.gd' --include='*.tscn' --include='*.tres' \
+				"res://${GAME_ROOT_REL}/${other}/" "$PROJECT/$GAME_ROOT_REL/$game" 2>/dev/null | head -3 || true)
+			if [ -n "$hits" ]; then
+				fail "业务越界: Game/${game}/ 引用了 Game/${other}/："
+				printf '%s\n' "$hits" | sed 's|^.*/Game/|    Game/|'
+			fi
+		done
+	done
+}
+
+# 只读体检：单仓模式下不再有独立业务仓
 check_game_layer() {
 	local item
 
@@ -275,14 +348,19 @@ main() {
 	if [ -n "$PROJECT" ]; then
 		PROJECT=$(abs_dir "$PROJECT") || die "目录不存在: $PROJECT"
 	else
-		PROJECT=$(find_project_root) || die "当前目录向上找不到 comedot 项目（需 project.godot + Game/.git）"
+		PROJECT=$(find_project_root_any) || die "当前目录向上找不到 comedot 项目（需 project.godot）"
 	fi
 	[ -f "$PROJECT/project.godot" ] || die "不是框架仓根目录（缺 project.godot）: $PROJECT"
 
-	printf '体检目标: %s\n' "$PROJECT"
+	LAYOUT=$(project_layout "$PROJECT")
+	printf '体检目标: %s（布局: %s）\n' "$PROJECT" "$LAYOUT"
 
 	check_framework_layer
-	check_game_layer
+	if [ "$LAYOUT" = "nested" ]; then
+		check_game_layer
+	else
+		check_single_repo_games
+	fi
 	check_forbidden_patterns
 	check_resource_refs
 

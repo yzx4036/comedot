@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# new_project.sh — 以 comedot 为框架的新游戏项目脚手架
+# new_project.sh — 【已废弃 · 双仓旧模型】以 comedot 为框架的新游戏项目脚手架
 #
-#   1. 克隆框架 → 建「项目框架仓」：origin=项目框架仓，upstream=框架上游（只读）
-#   2. 在框架仓的 Game/ 挂载「游戏业务仓」（Game/ 即该仓仓库根）
-#   3. 按 anchor.conf 锚定当前 comedot 目录结构，生成游戏层骨架与启动契约
-#
-# 用法：new_project.sh --proj <Proj> [选项]
-# 详细说明见 _ToolScript/README.md
+#   已被「单仓 · Game 下多业务」取代（见 docs/multi-game-layout.md）：
+#   新项目 = fork 框架仓 → `_ToolScript/new_game.sh --name <业务>`。
+#   保留本脚本仅为理解/复现迁移前的双仓形态。
 # ---------------------------------------------------------------------------
 
 set -uo pipefail

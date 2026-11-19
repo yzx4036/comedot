@@ -71,26 +71,53 @@ resolve_project() {
 	if [ -n "$PROJECT" ]; then
 		PROJECT=$(abs_dir "$PROJECT") || die "目录不存在: $PROJECT"
 	else
-		PROJECT=$(find_project_root) || die "当前目录向上找不到 comedot 项目（需 project.godot + Game/.git）；用 --project 指定"
+		PROJECT=$(find_project_root) || PROJECT=$(find_project_root_any) \
+			|| die "当前目录向上找不到 comedot 项目（需 project.godot）；用 --project 指定"
 	fi
 
 	[ -f "$PROJECT/project.godot" ] || die "不是框架仓根目录（缺 project.godot）: $PROJECT"
-	game_repo_mounted "$PROJECT" || die "Game/ 不是独立 git 仓，与本流水线约定不符: $PROJECT/Game"
+
+	LAYOUT=$(project_layout "$PROJECT")
+	case "$LAYOUT" in
+		single) log_info "布局: 单仓多业务（Game/ 与本仓同属一个仓）" ;;
+		nested) log_info "布局: 双仓旧模型（Game/ 是独立仓，建议按 docs/multi-game-layout.md 迁移）" ;;
+		*)      die "缺少 Game/ 目录: $PROJECT/$GAME_ROOT_REL" ;;
+	esac
 
 	log_info "项目: $PROJECT"
 }
 
 check_worktree() {
-	if worktree_dirty "$PROJECT"; then
-		if [ "$ALLOW_DIRTY" = "1" ]; then
-			log_warn "框架仓有未提交改动，--allow-dirty 强制继续"
-			git -C "$PROJECT" status --short --untracked-files=no
-		else
-			log_err "框架仓有未提交改动，先提交或 stash："
-			git -C "$PROJECT" status --short --untracked-files=no
-			die "已中止（合并失败会污染这些改动）"
-		fi
+	local dirty overlap
+	dirty=$(git -C "$PROJECT" diff --name-only HEAD 2>/dev/null || true)
+
+	if [ -z "$dirty" ]; then
+		return 0
 	fi
+
+	# 单仓模型：Game/ 与框架同仓，但上游不会改我们的业务目录 ⇒
+	# 只有「与上游改动重叠」的脏文件才真正阻塞合并
+	if [ "$LAYOUT" = "single" ] && [ -f "$TMP_DIR/up.sorted" ]; then
+		printf '%s\n' "$dirty" | sort > "$TMP_DIR/dirty.sorted"
+		comm -12 "$TMP_DIR/dirty.sorted" "$TMP_DIR/up.sorted" > "$TMP_DIR/dirty_overlap.sorted"
+		if [ ! -s "$TMP_DIR/dirty_overlap.sorted" ]; then
+			log_ok "工作区有 $(printf '%s\n' "$dirty" | wc -l | tr -d ' ') 个未提交改动，但都与上游改动无重叠 → 允许合并"
+			return 0
+		fi
+		log_err "以下未提交文件与上游将要改动的文件重叠，先提交或 stash："
+		sed 's/^/    /' "$TMP_DIR/dirty_overlap.sorted"
+		die "已中止（合并会覆盖这些改动）"
+	fi
+
+	if [ "$ALLOW_DIRTY" = "1" ]; then
+		log_warn "框架仓有未提交改动，--allow-dirty 强制继续"
+		printf '%s\n' "$dirty" | sed 's/^/    /'
+		return 0
+	fi
+
+	log_err "框架仓有未提交改动，先提交或 stash："
+	printf '%s\n' "$dirty" | sed 's/^/    /'
+	die "已中止（合并失败会污染这些改动）"
 }
 
 resolve_branch() {
@@ -133,7 +160,8 @@ show_incoming() {
 	printf '%s\n' "$incoming" | head -20 | sed 's/^/    /'
 
 	base=$(git -C "$PROJECT" merge-base HEAD "$UPSTREAM_REF") || die "无法计算 merge-base"
-	git -C "$PROJECT" diff --name-only "HEAD..$UPSTREAM_REF" > "$TMP_DIR/upstream_files.txt"
+	# 基准必须是 merge-base：HEAD..upstream 会把「本地新增的 Game/ 业务目录」误算成上游要删的东西
+	git -C "$PROJECT" diff --name-only "$base..$UPSTREAM_REF" > "$TMP_DIR/upstream_files.txt"
 	git -C "$PROJECT" diff --name-only "$base..HEAD" > "$TMP_DIR/local_files.txt"
 
 	local game_hits
@@ -196,6 +224,13 @@ EOF
 
 sync_game_repo() {
 	local game="$PROJECT/Game" branch counts behind ahead
+
+	# 单仓多业务：Game/ 与本仓同一提交，不需要单独同步
+	if [ "${LAYOUT:-}" != "nested" ]; then
+		log_info "单仓布局：Game/ 随本仓一起读/写，无需单独同步业务仓"
+		return 0
+	fi
+
 	branch=$(git -C "$game" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
 
 	log_info "游戏业务仓同步检查（分支: ${branch:-detached}）…"
@@ -269,7 +304,6 @@ main() {
 	resolve_project
 	cd "$PROJECT" || die "无法进入 $PROJECT"
 
-	check_worktree
 	resolve_branch
 	fetch_upstream
 
@@ -278,6 +312,9 @@ main() {
 		run_verify
 		exit 0
 	fi
+
+	# show_incoming 已生成 up.sorted，脏检查才能按「与上游是否重叠」判定
+	check_worktree
 
 	if [ "$DRY_RUN" = "1" ]; then
 		log_info "--dry-run：未做合并。去掉 --dry-run 执行合并"

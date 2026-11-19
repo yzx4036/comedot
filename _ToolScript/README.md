@@ -1,15 +1,32 @@
 # _ToolScript — comedot 游戏项目脚手架与更新流水线
 
-以 comedot 为框架开游戏项目时，**双仓 + 上游框架** 的建仓/更新/体检脚本。
+以 comedot 为框架开游戏项目时用的建仓/建业务/更新/体检脚本。
 所有结构判断都读 `anchor.conf`（锚定规格），框架升级导致结构变化时**只改 `anchor.conf`**。
+
+> **模型已切换为「单仓 · Game 下多业务」**（2026-11-18 决策）：框架与游戏业务在同一个仓，
+> `Game/` 下可并列多个互相独立的业务，用 `Game/override.cfg` 选当前激活的那个。
+> 完整模型、公开/私有边界、从双仓迁移步骤见 `docs/multi-game-layout.md`。
 
 ```
 _ToolScript/
-├── anchor.conf          锚定规格：框架必需目录/文件、Game 边界、启动契约、命名规范
-├── lib.sh               共用函数（日志、git 环境、锚定校验、项目定位）
-├── new_project.sh       新建项目：框架仓 + 游戏业务仓 + 游戏层骨架
-├── update_project.sh    更新：拉上游框架更新（含冲突安全检查）+ 同步游戏仓
-└── verify_project.sh    体检：只读，校验项目是否仍严格锚定当前框架
+├── anchor.conf          锚定规格：框架必需目录/文件、游戏层契约、启动链、命名规范
+├── lib.sh               共用函数（日志、git 环境、布局识别、锚定校验）
+├── new_game.sh          ★ 新建同级游戏业务（Game/<Name>/ + 契约文件）
+├── select_game.sh       ★ 切换激活业务（重写 Game/override.cfg）
+├── update_project.sh    拉上游框架更新（单仓下 Game/ 一起合并，脏文件按重叠判定）
+├── verify_project.sh    体检：只读，自动识别单仓/双仓布局
+└── new_project.sh       【已废弃】双仓旧模型：建框架仓+独立业务仓（仅供参考迁移前历史）
+```
+
+## 常用命令
+
+```bash
+_ToolScript/new_game.sh --name <Proj> --title "武侠" --activate   # 建业务并切过去
+_ToolScript/select_game.sh                                       # 看有哪些业务、当前激活谁
+_ToolScript/select_game.sh <Proj>                                 # 切换
+_ToolScript/verify_project.sh                                    # 体检（0=过 1=有 FAIL）
+_ToolScript/update_project.sh --dry-run                          # 看上游带来什么
+_ToolScript/update_project.sh                                    # 合并上游框架更新
 ```
 
 ## 双仓模型
