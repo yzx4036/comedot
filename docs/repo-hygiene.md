@@ -52,6 +52,8 @@ FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f \
 | 起始父提交 `5c4e8388` | **未变**，与上游 `InvadingOctopus/comedot` 的血缘保留 |
 | `up_stream` 分支 | 未改写（仍是原始上游引用） |
 | 被连带重写的 13 个提交 | 内容与原提交**逐字节相同**，仅哈希变化 |
+| `master` / `test-merge` | 同样按 `5c4e8388..` 范围重写并强推；origin 上 4 个分支（develop/master/test-merge/up_stream）全部 0 命中 |
+| ⚠️ GitHub 上的旧提交对象 | 平台会保留一段时间，旧 SHA 仍可能被直接访问；要彻底消失需联系 GitHub Support 或删除重建仓库 |
 | 其他机器上的 clone | 需 `git fetch && git reset --hard origin/develop` |
 | 下次合并 `up_stream` | 会看到「同内容不同哈希」的提交，多数文件干净合并；`docs/` 里被脱敏的 3 处可能需取本地版本 |
 | 回滚 | 本地保留 `backup/pre-scrub-20261119`（未推送） |
