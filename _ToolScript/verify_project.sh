@@ -142,7 +142,7 @@ check_framework_layer() {
 	elif [ "$is_framework_source" = "1" ]; then
 		pass "本仓即框架源仓（origin 指向 comedot），不要求 upstream"
 	else
-		fail "框架仓缺少 upstream 远端（无法拉框架更新）"
+		fail "缺少 upstream 远端（无法拉框架更新）；clone 后跑 _ToolScript/link_upstream.sh 接上"
 	fi
 }
 
