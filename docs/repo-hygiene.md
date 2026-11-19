@@ -35,25 +35,28 @@ git ls-files -z | xargs -0 grep -nE 'sk-[A-Za-z0-9]{16,}|ghp_|AKIA|PRIVATE KEY'
 git ls-files -z | xargs -0 grep -nE '/Users/[a-z]|[A-Za-z]:\\Users\\|[A-Za-z]:\\_Proj'
 ```
 
-## 3. 历史里的残留与处理选项
+## 3. 历史清洗（已完成，2026-11-19）
 
-内部代号仍留在 **3 个历史提交**里（仅文档文本，无凭据）：
+内部代号曾留在 3 个历史提交里（仅文档文本，无凭据）。已用 **`git filter-branch --tree-filter` 只重写本仓 16 个提交**（`5c4e8388..develop`）清除：
 
-| 提交 | 说明 |
+```bash
+FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f \
+  --tree-filter 'python3 <scrub 脚本>' -- 5c4e8388..<branch>
+```
+
+结果与代价：
+
+| 项 | 状态 |
 |---|---|
-| `b9359936`（2026-10-13）| `docs/` 逆向文档集首次写入内部仓名 |
-| `c74a5389` | `_ToolScript` 初版 README 写了真实仓名 |
-| `886a79ff` | 单仓模型文档沿用真实仓名 |
+| 历史里的内部代号 / 本机路径 | **0 命中**（`git log -S` 已验证） |
+| 起始父提交 `5c4e8388` | **未变**，与上游 `InvadingOctopus/comedot` 的血缘保留 |
+| `up_stream` 分支 | 未改写（仍是原始上游引用） |
+| 被连带重写的 13 个提交 | 内容与原提交**逐字节相同**，仅哈希变化 |
+| 其他机器上的 clone | 需 `git fetch && git reset --hard origin/develop` |
+| 下次合并 `up_stream` | 会看到「同内容不同哈希」的提交，多数文件干净合并；`docs/` 里被脱敏的 3 处可能需取本地版本 |
+| 回滚 | 本地保留 `backup/pre-scrub-20261119`（未推送） |
 
-处理代价（**互斥，需选一条**）：
-
-| 方案 | 做法 | 历史干净度 | 上游血缘 | 下游影响 |
-|---|---|---|---|---|
-| **A. 不清洗（当前状态）** | 只做树上脱敏，历史保留文本 | 旧提交仍可见代号 | 完好 | 无 |
-| **B. 重写本仓历史** | `git filter-repo --replace-text` + force push | 全干净 | **断裂**：上游提交也被重写，之后无法再 merge `InvadingOctopus/comedot`，只能重新 fork | 所有 clone 需重新 clone / reset；下游项目仓的 upstream 血缘失效 |
-| **C. 重建干净公开仓** | 从上游重新 fork（全新祖先），把当前清理后的树作为少量逻辑提交推上去 | 全干净 | 完好（祖先是纯上游） | 旧仓需改名/删除；下游项目仓要改指向新仓并重新对齐 |
-
-**建议**：只有当你把「历史里不能出现内部代号」当硬要求时才动 B/C；否则 A 足够（本仓历史里没有凭据，代号本身不含业务内容）。若选 C，请先确认旧公开仓如何处理（改名归档还是删除）——**公开仓直接归档仍可读**，必须先私有化或删除。
+> 走这条路线而没有整仓 `filter-repo`，就是因为整仓重写会连上游提交一起换哈希，等于断掉与 `InvadingOctopus/comedot` 的血缘，之后无法再 merge 上游。
 
 ## 4. 以后怎么防
 
