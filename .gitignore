@@ -34,9 +34,8 @@ Notes/AGENTS.override.md
 /Lab/*
 /Temporary/
 override.cfg
-
-# Game/: 独立业务仓库，保持忽略（本地约定，勿随上游合并移除）
-/Game/*
+# 例外：Game 层的业务选择器随仓跟踪（单仓多业务模型，见 docs/multi-game-layout.md）
+!/Game/override.cfg
 
 # Operating System junk
 .DS_Store
