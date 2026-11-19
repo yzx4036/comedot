@@ -120,7 +120,9 @@ project_layout() {
 	fi
 }
 
-# 列出 Game/ 下的业务目录名（每个业务 = 一个同级目录）
+# 列出 Game/ 下的业务目录名
+# 判据：目录里含 game.cfg 或 ComedotProjectSettings.tres 才算游戏业务；
+# 这样 Game/_ConfigTables、Game/generated 之类的辅助目录不会被误当成业务。
 list_game_businesses() {
 	local dir=$1 path name
 	for path in "$dir/$GAME_ROOT_REL"/*/; do
@@ -128,7 +130,23 @@ list_game_businesses() {
 		name=${path%/}
 		name=${name##*/}
 		case "$name" in .*) continue ;; esac
-		printf '%s\n' "$name"
+		if [ -f "$path/game.cfg" ] || [ -f "$path/$GAME_PER_BUSINESS_SETTINGS" ]; then
+			printf '%s\n' "$name"
+		fi
+	done
+}
+
+# 列出 Game/ 下不是业务的辅助目录（供体检提示）
+list_game_support_dirs() {
+	local dir=$1 path name
+	for path in "$dir/$GAME_ROOT_REL"/*/; do
+		[ -d "$path" ] || continue
+		name=${path%/}
+		name=${name##*/}
+		case "$name" in .*) continue ;; esac
+		if [ ! -f "$path/game.cfg" ] && [ ! -f "$path/$GAME_PER_BUSINESS_SETTINGS" ]; then
+			printf '%s\n' "$name"
+		fi
 	done
 }
 

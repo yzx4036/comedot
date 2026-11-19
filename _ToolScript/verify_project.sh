@@ -157,6 +157,12 @@ check_single_repo_games() {
 		return 0
 	fi
 
+	local support
+	support=$(list_game_support_dirs "$PROJECT")
+	if [ -n "$support" ]; then
+		log_info "Game/ 下的辅助目录（不是游戏业务）: $(printf '%s ' $support)"
+	fi
+
 	if [ ! -f "$PROJECT/$GAME_OVERRIDE_REL" ]; then
 		fail "缺少业务选择器: $GAME_OVERRIDE_REL"
 		return 0
