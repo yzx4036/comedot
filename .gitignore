@@ -50,3 +50,6 @@ addons/npc_library_tool
 # etc
 .idea
 _ConfigTables/gen_code.bat
+
+# 业务配置表中间产物（gen_all_configs.sh 会把它拷进 Assets/Configs/GameConfigs）
+/Game/*/_ConfigTables/Configs/Bin/

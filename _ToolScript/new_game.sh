@@ -144,6 +144,10 @@ create_structure() {
 	for dir in $GAME_MIRROR_LEAF_DIRS; do
 		scaffold_dir "$dir"
 	done
+	# 业务自己的配置表目录（可选；不给业务表就不要建，避免空壳目录）
+	for dir in ${GAME_OPTIONAL_DIRS:-}; do
+		scaffold_dir "$dir"
+	done
 	log_ok "目录骨架就绪"
 }
 
