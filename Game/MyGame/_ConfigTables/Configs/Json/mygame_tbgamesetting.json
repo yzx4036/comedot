@@ -2,6 +2,7 @@
   {
     "starting_gold": 100,
     "max_level": 4,
-    "auto_save": true
+    "auto_save": true,
+    "player_damage": 10
   }
 ]

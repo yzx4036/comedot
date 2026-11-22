@@ -1,0 +1,91 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Game/MyGame/Scripts/Gameplay/LevelSelect.gd" id="1_select"]
+
+[node name="LevelSelect" type="Node2D"]
+script = ExtResource("1_select")
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="Root" type="Control" parent="UILayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="UILayer/Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0588235, 0.0705882, 0.101961, 1)
+
+[node name="Margin" type="MarginContainer" parent="UILayer/Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="UILayer/Root/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleRow" type="HBoxContainer" parent="UILayer/Root/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="UILayer/Root/Margin/VBox/TitleRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "选择关卡"
+
+[node name="StatusLabel" type="Label" parent="UILayer/Root/Margin/VBox/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 13
+text = "加载中…"
+vertical_alignment = 1
+
+[node name="GoldLabel" type="Label" parent="UILayer/Root/Margin/VBox/TitleRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.98, 0.83, 0.35, 1)
+text = "金币 0"
+vertical_alignment = 1
+
+[node name="HintLabel" type="Label" parent="UILayer/Root/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.607843, 0.639216, 0.705882, 1)
+text = ""
+
+[node name="LevelScroll" type="ScrollContainer" parent="UILayer/Root/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="LevelGrid" type="GridContainer" parent="UILayer/Root/Margin/VBox/LevelScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 14
+columns = 4
+
+[node name="FooterRow" type="HBoxContainer" parent="UILayer/Root/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TestbedButton" type="Button" parent="UILayer/Root/Margin/VBox/FooterRow"]
+layout_mode = 2
+text = "打开框架功能测试台"

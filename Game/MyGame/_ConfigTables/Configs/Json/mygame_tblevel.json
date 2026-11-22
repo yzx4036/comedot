@@ -5,7 +5,8 @@
     "difficulty": 1,
     "enemy_count": 5,
     "time_limit": 120,
-    "is_boss_stage": false
+    "is_boss_stage": false,
+    "enemy_health": 20
   },
   {
     "id": 2,
@@ -13,7 +14,8 @@
     "difficulty": 2,
     "enemy_count": 12,
     "time_limit": 180,
-    "is_boss_stage": false
+    "is_boss_stage": false,
+    "enemy_health": 40
   },
   {
     "id": 3,
@@ -21,7 +23,8 @@
     "difficulty": 3,
     "enemy_count": 20,
     "time_limit": 240,
-    "is_boss_stage": false
+    "is_boss_stage": false,
+    "enemy_health": 70
   },
   {
     "id": 4,
@@ -29,6 +32,7 @@
     "difficulty": 4,
     "enemy_count": 35,
     "time_limit": 300,
-    "is_boss_stage": true
+    "is_boss_stage": true,
+    "enemy_health": 240
   }
 ]

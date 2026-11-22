@@ -24,6 +24,7 @@ namespace Y0Studio.Config.MyGame
             EnemyCount = _buf.ReadInt();
             TimeLimit = _buf.ReadFloat();
             IsBossStage = _buf.ReadBool();
+            EnemyHealth = _buf.ReadInt();
 
             PostInit();
         }
@@ -57,6 +58,10 @@ namespace Y0Studio.Config.MyGame
         /// 是否boss关
         /// </summary>
         public readonly bool IsBossStage;
+        /// <summary>
+        /// 每个敌人血量（配合设置的 player_damage 决定击杀次数）
+        /// </summary>
+        public readonly int EnemyHealth;
     
         public const int __ID__ = 191282516;
         public override int GetTypeId() => __ID__;
@@ -76,6 +81,7 @@ namespace Y0Studio.Config.MyGame
             + "enemyCount:" + EnemyCount + ","
             + "timeLimit:" + TimeLimit + ","
             + "isBossStage:" + IsBossStage + ","
+            + "enemyHealth:" + EnemyHealth + ","
             + "}";
         }
 

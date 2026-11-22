@@ -22,6 +22,7 @@ CHECK_TESTBED_REL="Game/MyGame/Tests/Regression/CheckTestbed.gd"
 CHECK_DEMOS_REL="Game/MyGame/Tests/Regression/CheckAllDemoScenes.gd"
 CHECK_CONFIG_REL="Game/MyGame/Tests/Regression/CheckConfigTables.gd"
 CHECK_BIZ_CONFIG_REL="Game/MyGame/Tests/Regression/CheckBusinessConfigTables.gd"
+CHECK_GAMEPLAY_REL="Game/MyGame/Tests/Regression/CheckConfigDrivenGameplay.tscn"
 PROBE_SCENE_REL="Game/MyGame/Tests/Regression/ProbeDemoScene.gd"
 SHOT_REL="Game/MyGame/Tests/Regression/CaptureTestbedScreenshot.gd"
 
@@ -30,6 +31,7 @@ QUIT_AFTER_CHECK=900
 QUIT_AFTER_DEMOS=2400
 QUIT_AFTER_CONFIG=900
 QUIT_AFTER_BIZ_CONFIG=900
+QUIT_AFTER_GAMEPLAY=1500
 QUIT_AFTER_PROBE=600
 
 SKIP_SCREENSHOT=0
@@ -98,7 +100,7 @@ check_environment() {
 		|| die "找不到项目根（缺 project.godot）: $PROJECT_ROOT"
 
 	local rel
-	for rel in "$CHECK_TESTBED_REL" "$CHECK_DEMOS_REL" "$CHECK_CONFIG_REL" "$CHECK_BIZ_CONFIG_REL" "$PROBE_SCENE_REL" "$SHOT_REL"; do
+	for rel in "$CHECK_TESTBED_REL" "$CHECK_DEMOS_REL" "$CHECK_CONFIG_REL" "$CHECK_BIZ_CONFIG_REL" "$CHECK_GAMEPLAY_REL" "$PROBE_SCENE_REL" "$SHOT_REL"; do
 		[ -f "$PROJECT_ROOT/$rel" ] || die "缺少验收脚本: $rel"
 	done
 
@@ -107,7 +109,15 @@ check_environment() {
 	log_info "项目: $PROJECT_ROOT"
 
 	[ -d "$PROJECT_ROOT/.godot" ] \
-		|| log_warn "项目还没导入过（缺 .godot/）：先跑 Godot --headless --path . --import"
+		|| log_warn "项目还没导入过（缺 .godot/）：先跑一次 Godot --headless --path . --import"
+
+	# 刷新 class_name 全局类缓存：新增带 class_name 的脚本后，headless 直接跑
+	# 会报 `Could not find type "Xxx"`（缓存里没有），必须先 import 一次。
+	if [ "${SKIP_IMPORT:-0}" != "1" ]; then
+		printf '[INFO] 刷新导入缓存（注册新 class_name）…\n'
+		( cd "$PROJECT_ROOT" && "$GODOT" --headless --path . --import >/dev/null 2>&1 ) \
+			|| log_warn "import 失败，可能碰到新脚本的 class_name 找不到"
+	fi
 }
 
 # endregion
@@ -117,13 +127,24 @@ check_environment() {
 
 # $1=脚本相对路径 $2=--quit-after 帧数 $3=日志文件 $4...=传给脚本的 user args
 # 返回值为引擎退出码
-run_godot() {
+run_godot_script() {
 	local rel=$1 frames=$2 log_file=$3
 	shift 3
 
 	: > "$log_file"
 	( cd "$PROJECT_ROOT" && "$GODOT" --headless --path . --script "$rel" \
 		--quit-after "$frames" --log-file "$log_file" -- "$@" >/dev/null 2>&1 )
+}
+
+# 场景模式：把 .tscn 当主场景跑。
+# 用于必须依赖 autoload（GameState / SceneManager / 业务 autoload）的检查 ——
+# `--script` 模式在 autoload 注册前编译脚本，碰到引用 autoload 的框架脚本会编译失败。
+run_godot_scene() {
+	local rel=$1 frames=$2 log_file=$3
+
+	: > "$log_file"
+	( cd "$PROJECT_ROOT" && "$GODOT" --headless --path . --quit-after "$frames" \
+		--log-file "$log_file" "res://$rel" >/dev/null 2>&1 )
 }
 
 print_tail() {
@@ -149,6 +170,41 @@ report_runtime_errors() {
 
 # region 各项检查
 
+# 场景模式检查：$1=显示名 $2=场景相对路径 $3=帧数
+# 结果判定与 run_headless_check 相同（AUTO_RESULT PASS / SKIP / 其余 FAIL）
+run_scene_check() {
+	local name=$1 rel=$2 frames=$3
+	local log_file="$LOG_DIR/$name.log"
+
+	log_info "── ${name}（场景模式）──────────────"
+
+	run_godot_scene "$rel" "$frames" "$log_file"
+	local exit_code=$?
+
+	if grep -q 'AUTO_RESULT SKIP' "$log_file" 2>/dev/null; then
+		local skipReason
+		skipReason=$(grep 'AUTO_RESULT SKIP' "$log_file" | tail -1 | sed 's/^AUTO_RESULT SKIP  *//')
+		log_info "$name → 跳过：$skipReason"
+		record "$name" "SKIP" "$skipReason"
+		return 0
+	fi
+
+	if [ "$exit_code" -ne 0 ] || ! grep -q 'AUTO_RESULT PASS' "$log_file" 2>/dev/null; then
+		log_err "$name 没有通过（退出码 ${exit_code}）"
+		print_tail "$log_file"
+		FAILS=$((FAILS + 1))
+		record "$name" "FAIL" "退出码 ${exit_code}"
+		return 1
+	fi
+
+	local headline
+	headline=$(grep 'AUTO_RESULT PASS' "$log_file" | tail -1 | sed 's/^AUTO_RESULT PASS  *//')
+	log_ok "$name → $headline"
+	report_runtime_errors "$name" "$log_file"
+	record "$name" "PASS" "$headline"
+	return 0
+}
+
 # $1=显示名 $2=脚本相对路径 $3=帧数 $4=成功标记串
 # 识别三种结局：PASS 标记 / SKIP 标记（环境未就绪，不算失败）/ 其余为 FAIL
 run_headless_check() {
@@ -157,7 +213,7 @@ run_headless_check() {
 
 	log_info "── $name ──────────────────────────────"
 
-	run_godot "$rel" "$frames" "$log_file"
+	run_godot_script "$rel" "$frames" "$log_file"
 	local exit_code=$?
 
 	if [ "$exit_code" -ne 0 ]; then
@@ -212,7 +268,7 @@ run_probe_smoke() {
 		return 0
 	fi
 
-	run_godot "$PROBE_SCENE_REL" "$QUIT_AFTER_PROBE" "$log_file" "$scene"
+	run_godot_script "$PROBE_SCENE_REL" "$QUIT_AFTER_PROBE" "$log_file" "$scene"
 	local exit_code=$?
 
 	if [ "$exit_code" -ne 0 ] || ! grep -q 'PROBE_OK' "$log_file" 2>/dev/null; then
@@ -304,6 +360,7 @@ main() {
 	run_headless_check "CheckAllDemoScenes" "$CHECK_DEMOS_REL"   "$QUIT_AFTER_DEMOS" "AUTO_RESULT PASS" || true
 	run_headless_check "CheckConfigTables"  "$CHECK_CONFIG_REL"  "$QUIT_AFTER_CONFIG" "AUTO_RESULT PASS" || true
 	run_headless_check "CheckBusinessConfigTables" "$CHECK_BIZ_CONFIG_REL" "$QUIT_AFTER_BIZ_CONFIG" "AUTO_RESULT PASS" || true
+	run_scene_check    "CheckConfigDrivenGameplay" "$CHECK_GAMEPLAY_REL" "$QUIT_AFTER_GAMEPLAY" || true
 	run_probe_smoke || true
 	run_screenshot || true
 

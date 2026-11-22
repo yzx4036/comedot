@@ -29,10 +29,22 @@ GODOT_BIN=/path/to/Godot runAll.sh                          # 引擎不在默认
 | `CheckAllDemoScenes.gd` | 把清单里**每一个**带演示的条目逐个「打开→关闭」，查崩溃与残留节点 | `AUTO_RESULT PASS` |
 | `CheckConfigTables.gd` | 框架示例表的运行时：数据目录、四种表形态、字段命名契约、Loader 门面（38 项断言） | `AUTO_RESULT PASS` |
 | `CheckBusinessConfigTables.gd` | **业务表**（`mygame_*`）的运行时：与框架表共存、map/one 形态、枚举别名→枚举名（25 项断言） | `AUTO_RESULT PASS` |
+| `CheckConfigDrivenGameplay.tscn` | **表驱动玩法**：关卡生成数/血量/倒计时/击杀次数与表一致，通关与超时判定（57 项断言） | `AUTO_RESULT PASS` |
 | `ProbeDemoScene.gd` | 单场景安全性探针：实例化指定场景跑 N 帧，判断它够不够格当演示 | `PROBE_OK <path>` |
 | `CaptureTestbedScreenshot.gd` | 窗口模式截图（功能索引 / 演示视图），视觉验收用 | `SHOT_SAVED <path> <WxH>` |
 
-两个配置表测试都依赖 C# 已编译；未编译时打印 `AUTO_RESULT SKIP`，runner 记 SKIP 而不算失败。
+两个配置表测试依赖 C# 已编译；`CheckConfigDrivenGameplay` 依赖业务表已生成。前置就绪时打印 `AUTO_RESULT SKIP`，runner 记 SKIP 而不算失败。
+
+### 两种运行模式，别搞混
+
+| 模式 | 适用 | 命令 |
+|---|---|---|
+| `--script`（SceneTree） | 不碰 autoload 的检查 | `Godot --headless --path . --script <x.gd> --quit-after N` |
+| 场景模式 | **碰框架组件的检查**（`HealthComponent` / `Stat` 内部引用 autoload `GameState`） | `Godot --headless --path . --quit-after N res://<x>.tscn` |
+
+`--script` 模式在 autoload 注册**之前**编译脚本，碰到引用 autoload 的框架脚本会报
+`Identifier not found: GameState` 并让整条依赖链编译失败 —— 表现是「脚本没挂上、方法找不到」，很容易误判成自己代码的问题。
+`CheckConfigDrivenGameplay` 因此做成了场景形态。
 
 单独跑：
 
@@ -88,6 +100,38 @@ macOS 上落在 `~/Library/Application Support/Godot/app_userdata/<项目名>/`�
 - 配置表测试**故意不**去调 `tb.row(advance表, id)` 或 `tb.val(..., &"snake_case")`：
   这两种错误用法会往 stderr 打 ERROR，虽是预期行为但会淹没真错误。
   契约改用「检查字典键全是 PascalCase」这种结构性断言来锁
+
+## 表驱动玩法的验收做法（`CheckConfigDrivenGameplay`）
+
+这条检查的核心是**期望值当场从表读**，不写死：
+
+```gdscript
+var expectedEnemyCount: int = int(tb.row(TABLE_LEVEL, levelId)["EnemyCount"])
+playNode.startLevel(levelId)
+assert playNode.enemyHost.get_child_count() == expectedEnemyCount   # 真生成了那么多节点
+```
+
+好处：改 Excel 后重跑断言自动跟着新值走；若代码改用硬编码，立刻红。
+
+另配一组「快照」硬编码常量（`SNAPSHOT_ENEMY_COUNTS` 等）锁住当前表内容，
+用来区分两种失败：
+
+| 现象 | 含义 |
+|---|---|
+| 只有快照项红，动态项全绿 | 表变了、代码仍然正确读表 ⇒ 改快照常量即可 |
+| 动态项红 | 代码没按表走（硬编码 / 读错表 / 桥接断了）⇒ 真 bug |
+
+实测证过：把表里 L1 改成 `敌人数=7 / 血量=99` 重新生成后跑，
+`PASS 关卡 1 敌人节点数 == 表 EnemyCount (7/7)`、`PASS 第 10 次攻击正好击杀（99/10）`，
+而 `FAIL 敌人数 (7)`、`FAIL 敌人血量 (99)` 只有快照两项 —— 正是上表第一种情况。
+
+## 配置表驱动玩法的三个运行期约束
+
+| 约束 | 症状与原因 |
+|---|---|
+| 🔴 **`ConfigMgr` 全进程只能有一个** | Luban 表类是 C# 静态单例，第二个 `LubanConfigService` 会报 `singleton register twice! TbExampleXxx` 并让整个 ConfigMgr 加载失败。⇒ 由 autoload `GameConfigHub` 统一持有，各场景 `GameConfigHub.getService()` 取，不要自己 `script.new()` |
+| 🔴 **碰框架组件的检查必须用场景模式跑** | 见上方「两种运行模式」 |
+| **新增带 `class_name` 的脚本后要先 `--import`** | 否则 headless 报 `Could not find type "Xxx"`（全局类缓存没刷新），表现为「脚本没挂上」。`runAll.sh` 已在环境检查里自动 import |
 
 ## 配置表链路（Luban）的实测事实
 

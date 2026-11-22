@@ -46,6 +46,10 @@ namespace Y0Studio.Config.MyGame
         /// 是否自动存档
         /// </summary>
         public bool AutoSave => _data.AutoSave;
+        /// <summary>
+        /// 玩家每次攻击伤害
+        /// </summary>
+        public int PlayerDamage => _data.PlayerDamage;
         
         public override void Resolve(ConcurrentDictionary<Type, IConfigSingleton> _tables)
         {

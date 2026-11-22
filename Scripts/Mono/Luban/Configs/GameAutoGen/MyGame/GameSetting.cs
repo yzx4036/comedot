@@ -21,6 +21,7 @@ namespace Y0Studio.Config.MyGame
             StartingGold = _buf.ReadInt();
             MaxLevel = _buf.ReadInt();
             AutoSave = _buf.ReadBool();
+            PlayerDamage = _buf.ReadInt();
 
             PostInit();
         }
@@ -42,6 +43,10 @@ namespace Y0Studio.Config.MyGame
         /// 是否自动存档
         /// </summary>
         public readonly bool AutoSave;
+        /// <summary>
+        /// 玩家每次攻击伤害
+        /// </summary>
+        public readonly int PlayerDamage;
     
         public const int __ID__ = 1419897806;
         public override int GetTypeId() => __ID__;
@@ -58,6 +63,7 @@ namespace Y0Studio.Config.MyGame
             + "startingGold:" + StartingGold + ","
             + "maxLevel:" + MaxLevel + ","
             + "autoSave:" + AutoSave + ","
+            + "playerDamage:" + PlayerDamage + ","
             + "}";
         }
 
