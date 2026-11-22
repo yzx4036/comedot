@@ -4,4 +4,4 @@
 
 [resource]
 script = ExtResource("1_settings")
-mainGameScenePath = "res://Game/MyGame/Scenes/Levels/MyGameMain.tscn"
+mainGameScenePath = "res://Game/MyGame/Scenes/Testbeds/FrameworkFeatureTestbed.tscn"
