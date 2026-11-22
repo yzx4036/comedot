@@ -20,12 +20,14 @@ PROJECT_ROOT=$(cd "$SCRIPT_DIR/../../../.." && pwd)
 
 CHECK_TESTBED_REL="Game/MyGame/Tests/Regression/CheckTestbed.gd"
 CHECK_DEMOS_REL="Game/MyGame/Tests/Regression/CheckAllDemoScenes.gd"
+CHECK_CONFIG_REL="Game/MyGame/Tests/Regression/CheckConfigTables.gd"
 PROBE_SCENE_REL="Game/MyGame/Tests/Regression/ProbeDemoScene.gd"
 SHOT_REL="Game/MyGame/Tests/Regression/CaptureTestbedScreenshot.gd"
 
 # headless 脚本的兜底帧数：脚本自身出错时 quit() 到不了，靠它避免挂死
 QUIT_AFTER_CHECK=900
 QUIT_AFTER_DEMOS=2400
+QUIT_AFTER_CONFIG=900
 QUIT_AFTER_PROBE=600
 
 SKIP_SCREENSHOT=0
@@ -94,7 +96,7 @@ check_environment() {
 		|| die "找不到项目根（缺 project.godot）: $PROJECT_ROOT"
 
 	local rel
-	for rel in "$CHECK_TESTBED_REL" "$CHECK_DEMOS_REL" "$PROBE_SCENE_REL" "$SHOT_REL"; do
+	for rel in "$CHECK_TESTBED_REL" "$CHECK_DEMOS_REL" "$CHECK_CONFIG_REL" "$PROBE_SCENE_REL" "$SHOT_REL"; do
 		[ -f "$PROJECT_ROOT/$rel" ] || die "缺少验收脚本: $rel"
 	done
 
@@ -145,7 +147,8 @@ report_runtime_errors() {
 
 # region 各项检查
 
-# $1=显示名 $2=脚本相对路径 $3=帧数 $4=成功的标记串
+# $1=显示名 $2=脚本相对路径 $3=帧数 $4=成功标记串
+# 识别三种结局：PASS 标记 / SKIP 标记（环境未就绪，不算失败）/ 其余为 FAIL
 run_headless_check() {
 	local name=$1 rel=$2 frames=$3 marker=$4
 	local log_file="$LOG_DIR/$name.log"
@@ -159,8 +162,17 @@ run_headless_check() {
 		log_err "$name 执行失败（退出码 ${exit_code}）"
 		print_tail "$log_file"
 		FAILS=$((FAILS + 1))
-		record "$name" "FAIL" "退出码 $exit_code"
+		record "$name" "FAIL" "退出码 ${exit_code}"
 		return 1
+	fi
+
+	# 环境未就绪（如 C# 未编译）由脚本自己声明 SKIP，别记成失败
+	if grep -q 'AUTO_RESULT SKIP' "$log_file" 2>/dev/null; then
+		local skipReason
+		skipReason=$(grep 'AUTO_RESULT SKIP' "$log_file" | tail -1 | sed 's/^AUTO_RESULT SKIP  *//')
+		log_info "$name → 跳过：$skipReason"
+		record "$name" "SKIP" "$skipReason"
+		return 0
 	fi
 
 	if ! grep -q "$marker" "$log_file" 2>/dev/null; then
@@ -288,6 +300,7 @@ main() {
 
 	run_headless_check "CheckTestbed"       "$CHECK_TESTBED_REL" "$QUIT_AFTER_CHECK" "AUTO_RESULT PASS" || true
 	run_headless_check "CheckAllDemoScenes" "$CHECK_DEMOS_REL"   "$QUIT_AFTER_DEMOS" "AUTO_RESULT PASS" || true
+	run_headless_check "CheckConfigTables"  "$CHECK_CONFIG_REL"  "$QUIT_AFTER_CONFIG" "AUTO_RESULT PASS" || true
 	run_probe_smoke || true
 	run_screenshot || true
 
