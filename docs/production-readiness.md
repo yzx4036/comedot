@@ -1,6 +1,6 @@
 # comedot 生产可用性基线
 
-> 由 `_ToolScript/audit_production.sh` 生成于 2026-11-22 16:27。**不要手改**，框架升级后重跑。
+> 由 `_ToolScript/audit_production.sh` 生成于 2026-11-22 16:44。**不要手改**，框架升级后重跑。
 > 引擎：PackedStringArray("4.8", "C#")
 
 ## 1. 组件稳定性
@@ -75,7 +75,17 @@
 
 ## 3. 回归门禁
 
-未运行（`--no-tests`）。
+`Game/MyGame/Tests/Regression/runAll.sh --skip-screenshot` → **PASS**
+
+```
+CheckTestbed               PASS  0 项失败
+CheckAllDemoScenes         PASS  41 个演示全部可开可关
+CheckConfigTables          PASS  0 项失败
+CheckBusinessConfigTables  PASS  0 项失败
+ProbeDemoScene             PASS  探针可用
+CaptureTestbedScreenshot   SKIP  --skip-screenshot
+```
+
 生产改动的最低门禁：这条命令必须 PASS。
 
 ## 4. 落地纪律
