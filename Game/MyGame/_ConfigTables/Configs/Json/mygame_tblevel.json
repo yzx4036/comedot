@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "name": "新手村",
+    "difficulty": 1,
+    "enemy_count": 5,
+    "time_limit": 120,
+    "is_boss_stage": false
+  },
+  {
+    "id": 2,
+    "name": "幽暗森林",
+    "difficulty": 2,
+    "enemy_count": 12,
+    "time_limit": 180,
+    "is_boss_stage": false
+  },
+  {
+    "id": 3,
+    "name": "废弃矿洞",
+    "difficulty": 3,
+    "enemy_count": 20,
+    "time_limit": 240,
+    "is_boss_stage": false
+  },
+  {
+    "id": 4,
+    "name": "熔岩地心",
+    "difficulty": 4,
+    "enemy_count": 35,
+    "time_limit": 300,
+    "is_boss_stage": true
+  }
+]

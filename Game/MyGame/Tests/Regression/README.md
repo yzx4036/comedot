@@ -27,11 +27,12 @@ GODOT_BIN=/path/to/Godot runAll.sh                          # 引擎不在默认
 |---|---|---|
 | `CheckTestbed.gd` | 按钮网格构建、清单与磁盘双向对照、演示启动/卸载/连开、搜索与类别筛选（28 项断言） | `AUTO_RESULT PASS` |
 | `CheckAllDemoScenes.gd` | 把清单里**每一个**带演示的条目逐个「打开→关闭」，查崩溃与残留节点 | `AUTO_RESULT PASS` |
-| `CheckConfigTables.gd` | Luban 配置表运行时：数据目录、四张表的形态、字段命名契约、Loader 门面（38 项断言） | `AUTO_RESULT PASS` |
+| `CheckConfigTables.gd` | 框架示例表的运行时：数据目录、四种表形态、字段命名契约、Loader 门面（38 项断言） | `AUTO_RESULT PASS` |
+| `CheckBusinessConfigTables.gd` | **业务表**（`mygame_*`）的运行时：与框架表共存、map/one 形态、枚举别名→枚举名（25 项断言） | `AUTO_RESULT PASS` |
 | `ProbeDemoScene.gd` | 单场景安全性探针：实例化指定场景跑 N 帧，判断它够不够格当演示 | `PROBE_OK <path>` |
 | `CaptureTestbedScreenshot.gd` | 窗口模式截图（功能索引 / 演示视图），视觉验收用 | `SHOT_SAVED <path> <WxH>` |
 
-`CheckConfigTables` 依赖 C# 已编译；未编译时它打印 `AUTO_RESULT SKIP`，runner 记 SKIP 而不算失败。
+两个配置表测试都依赖 C# 已编译；未编译时打印 `AUTO_RESULT SKIP`，runner 记 SKIP 而不算失败。
 
 单独跑：
 
@@ -106,7 +107,32 @@ macOS 上落在 `~/Library/Application Support/Godot/app_userdata/<项目名>/`�
 生成 → 编译 → 测试的完整闭环：
 
 ```bash
-_ConfigTables/gen_code_framework.sh     # Excel → C# 代码 + .bytes/.json
-dotnet build Comedot.csproj             # 编译生成的 C#
-Game/MyGame/Tests/Regression/runAll.sh  # 含 CheckConfigTables
+_ConfigTables/gen_all_configs.sh --build   # 框架表 + 业务表 → 合并进运行目录 → 编译
+Game/MyGame/Tests/Regression/runAll.sh
 ```
+
+### 业务表（Game/MyGame/_ConfigTables/）
+
+业务流程与框架表同构，但有四个必须知道的约束：
+
+| 约束 | 原因 |
+|---|---|
+| 生成脚本是 `Game/MyGame/_ConfigTables/gen_code_business.sh`，**不要**直接调 Luban | 输出落点有讲究，见下 |
+| 业务表的 C# 生成到 `Scripts/Mono/Luban/Configs/GameAutoGen/`，不在 `Game/` 下 | `Comedot.csproj` 有 `<Compile Remove="Game/**/*.cs" />`，放 `Game/` 下不会被编译；而 `ConfigMgr` 只扫自己所在程序集里的表类 |
+| `luban.conf` 的 `topModule` 必须是 `Y0Studio.Config`，表 `full_name` 用 `MyGame.TbLevel` | `ConfigMgr` 默认前缀是 `Y0Studio.Config`；若 topModule 写成 `Y0Studio.Config.MyGame` 会变成 `...MyGame.MyGame.TbLevel`，枚举引用失配报 `type is invalid` |
+| 业务 `.bytes` 先落到 `Game/MyGame/_ConfigTables/Configs/Bin/`，再由 `gen_all_configs.sh` 拷进运行目录 | **Luban 生成前会清空输出目录**；业务直接输出到 `Assets/Configs/GameConfigs` 会把框架的 `examples_*.bytes` 删掉 |
+
+其余实测行为：
+
+- 枚举字段在 Excel 里填**别名**（如「简单」），运行时 `Tb.val()` 读到的是**枚举名**（`"Easy"`）
+- id 不存在时用 `tb.hasId()` 判断，**不要**调 `tb.row(不存在id)` —— 后者会往 stderr 打 ERROR
+- 业务表缺任何一个 `.bytes`，`ConfigMgr` 整体加载失败，**框架表也一并读不到**（共用一个 ConfigDirectory）。所以运行目录里两类表必须同时齐
+
+### 手工维护表结构时的两个格式铁律
+
+改 `__tables__.xlsx` / `__beans__.xlsx` / `__enums__.xlsx` 时，**优先复制框架的 `_ConfigTables/Excel/Datas/*.xlsx` 再改内容**，不要用脚本从零建 sheet：
+
+1. **不要 unmerge 合并单元格**：`__enums__.xlsx` 的 `*items` 是 `H1:L1` 合并，表示子结构横跨 5 列。解开后 Luban 认为子结构只有 1 列，报
+   `bean:'__intern__.__EnumItem__' 缺失 列:'alias'` —— 即使逐格对比列位置完全一致也会报。
+2. **子字段行必须对齐到合并区起点**：`##var` 第二行的 `name/alias/value/...` 要从 H 列（第 8 列）开始写，前面用空值占位。写到 B 列会让 Luban 认为 `full_name` 有子列，报「简单数据类型字段 不支持子列名或者多行」。
+3. 合并区内的非左上角单元格是 openpyxl 的 `MergedCell`，只读，赋值会抛 `AttributeError` ⇒ 写脚本时跳过。

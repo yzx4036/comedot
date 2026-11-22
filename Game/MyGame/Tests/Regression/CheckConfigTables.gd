@@ -27,6 +27,8 @@ const TABLE_ADVANCE: StringName = &"examples_tbexampleadvance"
 const TABLE_LIST: StringName = &"examples_tbexamplelist"
 const TABLE_SINGLETON: StringName = &"examples_tbexamplesingleton"
 
+## 框架自带的示例表数量。运行目录里还会并入业务表（mygame_*），
+## 所以断言写成「≥ 这个数且四张框架表都在」，不要精确相等。
 const EXPECTED_TABLE_COUNT: int = 4
 
 var failures: PackedStringArray = PackedStringArray()
@@ -130,7 +132,8 @@ func _loadService() -> bool:
 
 func _checkTableIndex() -> void:
 	var names: Array = service.GetConfigNames()
-	_check(names.size() == EXPECTED_TABLE_COUNT, "表数量", str(names.size()))
+	# 不要写成 names.size() == 4：运行目录里还有业务表，总数会更多
+	_check(names.size() >= EXPECTED_TABLE_COUNT, "框架示例表齐全（总数含业务表）", str(names.size()))
 	for tableName in [str(TABLE_BASIC), str(TABLE_ADVANCE), str(TABLE_LIST), str(TABLE_SINGLETON)]:
 		_check(names.has(tableName), "表已注册", tableName)
 

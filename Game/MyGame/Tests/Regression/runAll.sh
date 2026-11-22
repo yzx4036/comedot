@@ -21,6 +21,7 @@ PROJECT_ROOT=$(cd "$SCRIPT_DIR/../../../.." && pwd)
 CHECK_TESTBED_REL="Game/MyGame/Tests/Regression/CheckTestbed.gd"
 CHECK_DEMOS_REL="Game/MyGame/Tests/Regression/CheckAllDemoScenes.gd"
 CHECK_CONFIG_REL="Game/MyGame/Tests/Regression/CheckConfigTables.gd"
+CHECK_BIZ_CONFIG_REL="Game/MyGame/Tests/Regression/CheckBusinessConfigTables.gd"
 PROBE_SCENE_REL="Game/MyGame/Tests/Regression/ProbeDemoScene.gd"
 SHOT_REL="Game/MyGame/Tests/Regression/CaptureTestbedScreenshot.gd"
 
@@ -28,6 +29,7 @@ SHOT_REL="Game/MyGame/Tests/Regression/CaptureTestbedScreenshot.gd"
 QUIT_AFTER_CHECK=900
 QUIT_AFTER_DEMOS=2400
 QUIT_AFTER_CONFIG=900
+QUIT_AFTER_BIZ_CONFIG=900
 QUIT_AFTER_PROBE=600
 
 SKIP_SCREENSHOT=0
@@ -96,7 +98,7 @@ check_environment() {
 		|| die "找不到项目根（缺 project.godot）: $PROJECT_ROOT"
 
 	local rel
-	for rel in "$CHECK_TESTBED_REL" "$CHECK_DEMOS_REL" "$CHECK_CONFIG_REL" "$PROBE_SCENE_REL" "$SHOT_REL"; do
+	for rel in "$CHECK_TESTBED_REL" "$CHECK_DEMOS_REL" "$CHECK_CONFIG_REL" "$CHECK_BIZ_CONFIG_REL" "$PROBE_SCENE_REL" "$SHOT_REL"; do
 		[ -f "$PROJECT_ROOT/$rel" ] || die "缺少验收脚本: $rel"
 	done
 
@@ -301,6 +303,7 @@ main() {
 	run_headless_check "CheckTestbed"       "$CHECK_TESTBED_REL" "$QUIT_AFTER_CHECK" "AUTO_RESULT PASS" || true
 	run_headless_check "CheckAllDemoScenes" "$CHECK_DEMOS_REL"   "$QUIT_AFTER_DEMOS" "AUTO_RESULT PASS" || true
 	run_headless_check "CheckConfigTables"  "$CHECK_CONFIG_REL"  "$QUIT_AFTER_CONFIG" "AUTO_RESULT PASS" || true
+	run_headless_check "CheckBusinessConfigTables" "$CHECK_BIZ_CONFIG_REL" "$QUIT_AFTER_BIZ_CONFIG" "AUTO_RESULT PASS" || true
 	run_probe_smoke || true
 	run_screenshot || true
 
