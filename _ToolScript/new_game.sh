@@ -119,7 +119,8 @@ resolve_root() {
 	layout=$(project_layout "$ROOT")
 	case "$layout" in
 		single) log_info "项目: ${ROOT}（单仓多业务布局）" ;;
-		nested) die "Game/ 仍是嵌套 git 仓（双仓旧模型）：先按 docs/multi-game-layout.md §6 迁移" ;;
+		legacy) warn_legacy_layout "$ROOT"
+		        log_warn "继续执行：新业务会落到旧形态的 Game/ 目录里" ;;
 		*)      log_info "项目: ${ROOT}（Game/ 尚未建立，将创建）" ;;
 	esac
 

@@ -73,7 +73,8 @@ resolve_root() {
 
 	case "$(project_layout "$ROOT")" in
 		single) ;;
-		nested) die "Game/ 是嵌套 git 仓（双仓旧模型）：先按 docs/multi-game-layout.md §6 迁移" ;;
+		legacy) warn_legacy_layout "$ROOT"
+		        log_warn "继续执行：重写的是旧形态的 Game/override.cfg" ;;
 		*)      die "缺少 Game/ 目录: $ROOT/$GAME_ROOT_REL" ;;
 	esac
 

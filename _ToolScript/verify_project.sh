@@ -3,11 +3,13 @@
 # verify_project.sh — 体检：项目是否严格锚定当前 comedot 框架结构
 #
 # 只读，不改任何文件。检查项：
-#   框架层  project.godot 启动覆盖设置 / 必需目录与文件 / .gitignore 的 Game 边界 / 远端布局
-#   游戏层  override.cfg 启动契约 / ComedotProjectSettings.tres 指向是否有效
-#           禁用锚点（已删除的框架类）/ 场景与资源引用是否存在 / 游戏仓远端
+#   框架层   project.godot 启动覆盖设置 / 必需目录与文件 / Game 归属 / 远端布局
+#   启动契约 Game/override.cfg 的 config/name、设置资源路径、主场景覆盖
+#   游戏层   业务目录识别 / 激活项 / 每个业务的 mainGameScenePath / 业务隔离
+#           禁用锚点（已删除的框架类）/ 场景与资源引用是否存在
 #
-# 退出码：0 = 全通过（可能有 WARN）；1 = 存在 FAIL
+# 布局：single = 单仓多业务（唯一支持形态）；legacy = 双仓旧模型（只警告提示迁移）
+# 退出码：0 = 无 FAIL（可能有 WARN）；1 = 存在 FAIL
 # ---------------------------------------------------------------------------
 
 set -uo pipefail
@@ -29,7 +31,7 @@ usage() {
 	cat <<'EOF'
 用法: verify_project.sh [--project PATH] [--quiet]
 
-  --project PATH   框架仓根目录（含 project.godot 且 Game/ 是独立仓）；默认从当前目录向上查找
+  --project PATH   项目根目录（含 project.godot；单仓多业务）默认从当前目录向上查找
   --quiet          只输出 FAIL/WARN
 EOF
 }
@@ -97,27 +99,23 @@ check_framework_layer() {
 		warn "框架启动链首场景不存在: $FRAMEWORK_LAUNCH_SCENE （启动契约可能已变）"
 	fi
 
-	if [ -f "$PROJECT/.gitignore" ] && grep -qxF "$FRAMEWORK_GAME_IGNORE_RULE" "$PROJECT/.gitignore"; then
-		pass ".gitignore 含 Game 边界规则: $FRAMEWORK_GAME_IGNORE_RULE"
+	if [ -f "$PROJECT/.gitignore" ] && grep -qxF "$FRAMEWORK_FORBIDDEN_IGNORE_RULE" "$PROJECT/.gitignore"; then
+		fail ".gitignore 仍忽略 Game/ ($FRAMEWORK_FORBIDDEN_IGNORE_RULE)：单仓模型要求跟踪 Game/（删掉该规则并按 §6 迁移）"
 	else
 		pass ".gitignore 无 Game 忽略规则（单仓多业务模型下 Game/ 必须被跟踪）"
 	fi
 
-	# 模型相关的 Game/ 归属校验
-	if [ "$LAYOUT" = "nested" ]; then
-		if git -C "$PROJECT" check-ignore -q -- "Game/override.cfg"; then
-			pass "边界实测: 框架仓忽略 Game/override.cfg（双仓旧模型）"
-		else
-			fail "边界失效: 双仓旧模型下框架仓没有忽略 Game/override.cfg"
-		fi
+	# Game/ 归属：单仓模型必须由本仓跟踪
+	if [ "$LAYOUT" = "legacy" ]; then
+		warn "Game/ 是嵌套 git 仓（双仓旧模型），跳过单仓归属校验；迁移后本项转绿"
+	elif [ "$LAYOUT" = "none" ]; then
+		warn "缺少 Game/ 目录（用 _ToolScript/new_game.sh 建第一个业务）"
+	elif git -C "$PROJECT" check-ignore -q -- "Game/override.cfg"; then
+		fail "Game/ 被 .gitignore 忽略（单仓模型要求跟踪）"
+	elif [ -z "$(git -C "$PROJECT" ls-files -- "$GAME_ROOT_REL" | head -1)" ]; then
+		fail "Game/ 下没有任何被跟踪文件（尚未 git add？）"
 	else
-		if git -C "$PROJECT" check-ignore -q -- "Game/override.cfg"; then
-			fail "Game/ 被 .gitignore 忽略（单仓模型要求跟踪）"
-		elif [ -z "$(git -C "$PROJECT" ls-files -- "$GAME_ROOT_REL" | head -1)" ]; then
-			fail "Game/ 下没有任何被跟踪文件（尚未 git add？）"
-		else
-			pass "Game/ 已被本仓跟踪（$(git -C "$PROJECT" ls-files -- "$GAME_ROOT_REL" | wc -l | tr -d ' ') 个文件）"
-		fi
+		pass "Game/ 已被本仓跟踪（$(git -C "$PROJECT" ls-files -- "$GAME_ROOT_REL" | wc -l | tr -d ' ') 个文件）"
 	fi
 
 	# 框架仓远端布局
@@ -164,7 +162,7 @@ check_single_repo_games() {
 	fi
 
 	if [ ! -f "$PROJECT/$GAME_OVERRIDE_REL" ]; then
-		fail "缺少业务选择器: $GAME_OVERRIDE_REL"
+		# 选择器缺失由 check_override_contract 报 FAIL，这里不重复计数
 		return 0
 	fi
 
@@ -213,83 +211,45 @@ check_single_repo_games() {
 	done
 }
 
-# 只读体检：单仓模式下不再有独立业务仓
-check_game_layer() {
-	local item
+# ── 启动契约（Game/override.cfg）：单仓与 legacy 都适用 ──────────────────
+check_override_contract() {
+	local settings_path=""
 
-	printf '\n── 游戏层（Game/ = 游戏业务仓根）──────────────────────\n'
+	printf '\n── 启动契约（Game/override.cfg）───────────────────────\n'
 
-	if game_repo_mounted "$PROJECT"; then
-		pass "Game/ 是独立 git 仓（游戏业务仓）"
-	else
-		fail "Game/ 不是独立 git 仓"
+	if [ ! -f "$PROJECT/$GAME_OVERRIDE_REL" ]; then
+		fail "缺少业务选择器: ${GAME_OVERRIDE_REL}（用 _ToolScript/select_game.sh <业务> 生成）"
 		return 0
 	fi
 
-	for item in $GAME_REPO_REQUIRED_FILES; do
-		if [ -f "$PROJECT/Game/$item" ]; then
-			pass "游戏仓必需文件: $item"
-		else
-			fail "游戏仓缺必需文件: Game/$item"
-		fi
-	done
-
-	# override.cfg 启动契约
-	if [ -f "$PROJECT/Game/override.cfg" ]; then
-		if grep -q '^config/name=' "$PROJECT/Game/override.cfg"; then
-			pass "override.cfg 设置了 config/name: $(grep -m1 '^config/name=' "$PROJECT/Game/override.cfg")"
-		else
-			warn "override.cfg 未设置 config/name（游戏窗口标题会沿用框架名）"
-		fi
-
-		local settings_path
-		settings_path=$(grep -m1 '^settings/comedotProjectSettingsPath=' "$PROJECT/Game/override.cfg" 2>/dev/null | sed -E 's/^[^=]+="?([^"]+)"?$/\1/' || true)
-		if [ -n "$settings_path" ]; then
-			if [ -f "$PROJECT/${settings_path#res://}" ]; then
-				pass "override.cfg 的 Comedot 设置资源路径有效: $settings_path"
-			else
-				fail "override.cfg 指向的设置资源不存在: $settings_path"
-			fi
-		else
-			warn "override.cfg 未重定向 comedot/settings/comedotProjectSettingsPath（会沿用框架根的 ComedotProjectSettings.tres，上游一改就串味）"
-		fi
-
-		if grep -q '^run/main_scene=' "$PROJECT/Game/override.cfg"; then
-			local main_scene
-			main_scene=$(grep -m1 '^run/main_scene=' "$PROJECT/Game/override.cfg" | sed -E 's/^[^=]+="?([^"]+)"?$/\1/')
-			if [ -f "$PROJECT/${main_scene#res://}" ]; then
-				pass "override.cfg 覆盖的主场景存在: $main_scene"
-			else
-				fail "override.cfg 覆盖的主场景不存在: $main_scene"
-			fi
-		else
-			pass "override.cfg 未覆盖主场景 ⇒ 走框架启动链（IOLogoScene → GameFrame → startMainScene）"
-		fi
+	if grep -q '^config/name=' "$PROJECT/$GAME_OVERRIDE_REL"; then
+		pass "override.cfg 设置了 config/name: $(grep -m1 '^config/name=' "$PROJECT/$GAME_OVERRIDE_REL")"
+	else
+		warn "override.cfg 未设置 config/name（窗口标题会沿用框架名）"
 	fi
 
-	# ComedotProjectSettings.tres 的 mainGameScenePath
-	local settings_tres="$PROJECT/Game/ComedotProjectSettings.tres"
-	if [ -f "$settings_tres" ]; then
-		local target
-		target=$(grep -m1 '^mainGameScenePath' "$settings_tres" | sed -E 's/.*=[[:space:]]*"?([^"]+)"?[[:space:]]*$/\1/' || true)
-		if [ -n "$target" ]; then
-			if [ -f "$PROJECT/${target#res://}" ]; then
-				pass "mainGameScenePath 有效: $target"
-			else
-				fail "mainGameScenePath 指向的场景不存在: $target"
-			fi
+	settings_path=$(grep -m1 '^settings/comedotProjectSettingsPath=' "$PROJECT/$GAME_OVERRIDE_REL" 2>/dev/null \
+		| sed -E 's/^[^=]+="?([^"]+)"?$/\1/' || true)
+	if [ -n "$settings_path" ]; then
+		if [ -f "$PROJECT/${settings_path#res://}" ]; then
+			pass "override.cfg 的 Comedot 设置资源路径有效: $settings_path"
 		else
-			warn "ComedotProjectSettings.tres 未设置 mainGameScenePath（Start 按钮会加载框架默认场景）"
+			fail "override.cfg 指向的设置资源不存在: $settings_path"
 		fi
 	else
-		warn "缺少 Game/ComedotProjectSettings.tres（主场景只能走框架默认值）"
+		warn "override.cfg 未重定向 comedot/settings/comedotProjectSettingsPath（会沿用框架根的 ComedotProjectSettings.tres，上游一改就串味）"
 	fi
 
-	# 游戏仓远端
-	if git -C "$PROJECT/Game" remote get-url origin >/dev/null 2>&1; then
-		pass "游戏仓 origin: $(git -C "$PROJECT/Game" remote get-url origin)"
+	if grep -q '^run/main_scene=' "$PROJECT/$GAME_OVERRIDE_REL"; then
+		local main_scene
+		main_scene=$(grep -m1 '^run/main_scene=' "$PROJECT/$GAME_OVERRIDE_REL" | sed -E 's/^[^=]+="?([^"]+)"?$/\1/')
+		if [ -f "$PROJECT/${main_scene#res://}" ]; then
+			pass "override.cfg 覆盖的主场景存在: $main_scene"
+		else
+			fail "override.cfg 覆盖的主场景不存在: $main_scene"
+		fi
 	else
-		warn "游戏仓缺少 origin 远端（无法备份/同步）"
+		pass "override.cfg 未覆盖主场景 ⇒ 走框架启动链（IOLogoScene → GameFrame → startMainScene）"
 	fi
 }
 
@@ -312,7 +272,7 @@ check_forbidden_patterns() {
 
 # 场景/资源引用存在性扫描
 check_resource_refs() {
-	local ref missing=0 local_only=0 total=0 ref_rel ref_repo
+	local ref missing=0 local_only=0 total=0 ref_rel
 	printf '\n── 资源引用 ──────────────────────────────────────────\n'
 
 	while IFS= read -r ref; do
@@ -320,14 +280,9 @@ check_resource_refs() {
 		total=$((total + 1))
 		[ -e "$PROJECT/${ref#res://}" ] && continue
 
-		# Game/ 内的引用查游戏仓；框架层引用查框架仓
+		# 单仓模型：框架层与 Game/ 层同一个仓，判「仓里有、工作区没有」
 		ref_rel=${ref#res://}
-		case "$ref_rel" in
-			Game/*) ref_repo="$PROJECT/Game"; ref_rel=${ref_rel#Game/} ;;
-			*)      ref_repo="$PROJECT" ;;
-		esac
-
-		if git -C "$ref_repo" cat-file -e "HEAD:${ref_rel}" 2>/dev/null; then
+		if git -C "$PROJECT" cat-file -e "HEAD:${ref_rel}" 2>/dev/null; then
 			fail "引用丢失（仓里有、工作区没有）: $ref"
 			missing=$((missing + 1))
 		else
@@ -361,12 +316,13 @@ main() {
 	LAYOUT=$(project_layout "$PROJECT")
 	printf '体检目标: %s（布局: %s）\n' "$PROJECT" "$LAYOUT"
 
+	# legacy：双仓旧模型只警告提示迁移，不再按单仓标准判 FAIL
+	[ "$LAYOUT" = "legacy" ] && warn_legacy_layout "$PROJECT"
+
 	check_framework_layer
-	if [ "$LAYOUT" = "nested" ]; then
-		check_game_layer
-	else
-		check_single_repo_games
-	fi
+	check_override_contract
+	# 业务层只在单仓模型下校验（legacy 的 Game/ 是别人的仓，标准不适用）
+	[ "$LAYOUT" = "legacy" ] || check_single_repo_games
 	check_forbidden_patterns
 	check_resource_refs
 

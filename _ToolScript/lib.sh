@@ -65,11 +65,11 @@ spec_lines() {
 
 # region 命名推导
 
-# 由 PROJ / PREFIX 推导 FW_REPO / GAME_REPO（全局变量）
+# 由 PROJ / PREFIX 推导项目仓名（全局变量）
+#   单仓模型：一个项目 = 一个仓（框架 + Game/ 同仓），没有独立的游戏业务仓
 derive_repo_names() {
 	local proj=$1 prefix=$2
 	FW_REPO="Comedot_${prefix}${proj}"
-	GAME_REPO="${FW_REPO}Game"
 }
 
 fw_repo_url() { printf 'git@github.com:%s/%s.git' "$1" "$2"; }
@@ -92,32 +92,40 @@ check_framework_anchor() {
 		grep -qF "$FRAMEWORK_OVERRIDE_SETTING_LINE" "$dir/project.godot" \
 			|| { log_err "project.godot 缺少启动覆盖设置: $FRAMEWORK_OVERRIDE_SETTING_LINE"; missing=1; }
 	fi
-	if [ -f "$dir/.gitignore" ]; then
-		grep -qxF "$FRAMEWORK_GAME_IGNORE_RULE" "$dir/.gitignore" \
-			|| { log_err ".gitignore 缺少 Game 边界规则: $FRAMEWORK_GAME_IGNORE_RULE"; missing=1; }
+	# 单仓模型：Game/ 必须由本仓跟踪，.gitignore 里不能还有旧的忽略规则
+	if [ -f "$dir/.gitignore" ] && grep -qxF "$FRAMEWORK_FORBIDDEN_IGNORE_RULE" "$dir/.gitignore"; then
+		log_err ".gitignore 仍忽略 Game/ ($FRAMEWORK_FORBIDDEN_IGNORE_RULE)：单仓模型要求跟踪 Game/"
+		missing=1
 	fi
 	[ -f "$dir/$FRAMEWORK_SETTINGS_SCRIPT" ] || { log_err "框架缺少 Comedot 设置脚本: $FRAMEWORK_SETTINGS_SCRIPT"; missing=1; }
 	return $missing
 }
 
-# 游戏仓是否已挂载在 $1/Game（Game/.git 存在）——双仓旧模型的判据
-game_repo_mounted() {
+
+# region 布局识别（single = 单仓多业务，唯一支持形态；legacy = 双仓旧模型，仅警告）
+
+# Game/ 是否还是独立 git 仓（双仓旧模型残留）
+legacy_nested_game_repo() {
 	[ -d "$1/Game/.git" ] || [ -f "$1/Game/.git" ]
 }
 
-
-# region 布局识别（single = 单仓多业务；nested = 双仓旧模型）
-
-# 输出 single | nested | none
+# 输出 single | legacy | none
 project_layout() {
 	local dir=$1
-	if game_repo_mounted "$dir"; then
-		printf 'nested\n'
+	if legacy_nested_game_repo "$dir"; then
+		printf 'legacy\n'
 	elif [ -d "$dir/$GAME_ROOT_REL" ]; then
 		printf 'single\n'
 	else
 		printf 'none\n'
 	fi
+}
+
+# legacy 布局统一提示（复用点：new_project/new_game/select_game/update/verify）
+# 旧形态不再提供完整支持，各脚本在提示后自行决定是否继续尽力而为
+warn_legacy_layout() {
+	log_warn "检测到双仓旧模型：$1/$GAME_ROOT_REL 仍是嵌套 git 仓"
+	log_warn "该形态已废弃，仅做尽力兼容；请按 docs/multi-game-layout.md §6 迁移到「单仓 · Game 下多业务」"
 }
 
 # 列出 Game/ 下的业务目录名
@@ -159,28 +167,13 @@ active_game_business() {
 	printf '%s\n' "$settings" | sed -E 's|^res://Game/([^/]+)/.*$|\1|'
 }
 
-# 向上找项目根（只要求 project.godot，不限 Game/ 形态）
+# 向上找项目根（project.godot 即项目根的判据；单仓模型下 Game/ 是普通目录，不参与判定）
 find_project_root_any() {
 	local dir
 	dir=$(abs_dir ".")
 	[ -n "$dir" ] || return 1
 	while [ "$dir" != "/" ] && [ -n "$dir" ]; do
 		if [ -f "$dir/project.godot" ]; then
-			printf '%s\n' "$dir"
-			return 0
-		fi
-		dir=$(dirname "$dir")
-	done
-	return 1
-}
-
-# 从当前目录向上找项目根（同时有 project.godot 与 Game/.git）
-find_project_root() {
-	local dir
-	dir=$(abs_dir ".")
-	[ -n "$dir" ] || return 1
-	while [ "$dir" != "/" ] && [ -n "$dir" ]; do
-		if [ -f "$dir/project.godot" ] && game_repo_mounted "$dir"; then
 			printf '%s\n' "$dir"
 			return 0
 		fi
