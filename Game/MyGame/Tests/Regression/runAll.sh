@@ -25,6 +25,7 @@ CHECK_BIZ_CONFIG_REL="Game/MyGame/Tests/Regression/CheckBusinessConfigTables.gd"
 CHECK_GAMEPLAY_REL="Game/MyGame/Tests/Regression/CheckConfigDrivenGameplay.tscn"
 PROBE_SCENE_REL="Game/MyGame/Tests/Regression/ProbeDemoScene.gd"
 SHOT_REL="Game/MyGame/Tests/Regression/CaptureTestbedScreenshot.gd"
+LUT_CAPTURE_REL="Game/MyGame/Tests/Regression/CaptureLutCanvas.tscn"
 
 # headless 脚本的兜底帧数：脚本自身出错时 quit() 到不了，靠它避免挂死
 QUIT_AFTER_CHECK=900
@@ -346,6 +347,69 @@ run_screenshot() {
 	return 1
 }
 
+
+## LutCanvas shader 的 A/B 验收：需要在窗口模式下渲染才拿得到画面
+run_lut_canvas() {
+	local name="CaptureLutCanvas"
+	local log_file="$LOG_DIR/$name.log"
+
+	log_info "── ${name}（窗口模式）──────────────────"
+
+	if [ "$SKIP_SCREENSHOT" = "1" ]; then
+		log_info "--skip-screenshot：跳过"
+		record "$name" "SKIP" "--skip-screenshot"
+		return 0
+	fi
+
+	if [ "$(uname -s)" != "Darwin" ] \
+		&& [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+		log_info "无图形环境，跳过"
+		record "$name" "SKIP" "无图形环境"
+		return 0
+	fi
+
+	: > "$log_file"
+	( cd "$PROJECT_ROOT" && exec "$GODOT" --path . "$LUT_CAPTURE_REL" \
+		--log-file "$log_file" >/dev/null 2>&1 ) &
+	local godot_pid=$!
+
+	# 脚本自己会 quit，这里只是兜底上限
+	local waited=0
+	while [ "$waited" -lt 60 ]; do
+		sleep 1
+		waited=$((waited + 1))
+		grep -qE '^VERDICT ' "$log_file" 2>/dev/null && break
+	done
+
+	kill "$godot_pid" 2>/dev/null || true
+	wait "$godot_pid" 2>/dev/null || true
+
+	local verdict
+	verdict=$(grep -E '^VERDICT ' "$log_file" 2>/dev/null | tail -1 | awk '{print $2}')
+
+	# 数值明细一律回显，方便判断是"真过"还是"没跑到"
+	grep -E '^(RAMP|PALETTE_SIZE|PALETTE_CONTAINMENT|SWATCH|HUE_DRIFT|SAT_DELTA|REGION) ' "$log_file" 2>/dev/null \
+		| sed 's/^/       /'
+	grep -E '^  FAIL ' "$log_file" 2>/dev/null | sed 's/^/       /'
+
+	if [ "$verdict" = "PASS" ]; then
+		log_ok "$name PASS"
+		record "$name" "PASS" "39 色精确匹配"
+		return 0
+	fi
+
+	if [ -z "$verdict" ]; then
+		log_warn "$name 未产生 VERDICT（可能没跑起来）"
+		record "$name" "WARN" "无 VERDICT"
+		return 0
+	fi
+
+	log_warn "$name FAIL"
+	FAILS=$((FAILS + 1))
+	record "$name" "FAIL" "见日志"
+	return 1
+}
+
 # endregion
 
 
@@ -363,6 +427,7 @@ main() {
 	run_scene_check    "CheckConfigDrivenGameplay" "$CHECK_GAMEPLAY_REL" "$QUIT_AFTER_GAMEPLAY" || true
 	run_probe_smoke || true
 	run_screenshot || true
+	run_lut_canvas || true
 
 	printf '\n════════════════════════════════════════════════════\n'
 	printf '汇总\n'
