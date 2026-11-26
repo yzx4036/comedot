@@ -164,6 +164,10 @@ fi
 	fi
 	printf '生产改动的最低门禁：这条命令必须 PASS。\n'
 	printf '\n'
+	printf '本审计用 `--skip-screenshot` 跑，因此四个窗口模式检查（索引截图、shader A/B、特效播放、关卡明暗层）会记 SKIP；\n'
+	printf '有图形环境时不带参数跑同一脚本，这几项也会执行并给出 PASS。\n'
+	printf '每项检查的判据与「为什么这么判」见 `docs/regression-gates.md`。\n'
+	printf '\n'
 
 	printf '## 4. 落地纪律\n'
 	printf '\n'
