@@ -35,6 +35,7 @@ var _palette_colors: Array[Color] = []
 var _palette_hex: PackedStringArray = PackedStringArray()
 var _families: Array = []
 var _labels: Array[Label] = []
+var _label_backdrops: Array[ColorRect] = []
 
 
 func _ready() -> void:
@@ -172,6 +173,7 @@ func _build_labels() -> void:
 		pick.size = Vector2(half.get_minimum_size().x + pad * 2, half.get_minimum_size().y + pad * 2)
 		pick.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		layer.add_child(pick)
+		_label_backdrops.append(pick)
 
 		var label: Label = Label.new()
 		label.text = String(item[0])
@@ -191,20 +193,37 @@ func _build_labels() -> void:
 	_labels.append(status)
 
 
-## 标签位于 shader 之上，其抗锯齿边缘必然不是调色板色。
-## 把这些矩形报给验收脚本，做断言时排除掉，避免误判 shader 输出越界。
+## 标签与它们的半透明底板都在 shader 之上：抗锯齿和半透明混合都会让像素发生变化，
+## 而且变化的对象是被处理过的下层内容。把这些矩形报给验收脚本，断言时排除掉。
 func get_label_rects() -> Array[Rect2i]:
 	var rects: Array[Rect2i] = []
+
+	# 半透明底板：它混合的是下层（已被 shader 处理）内容，像素必然变化
+	for pick: ColorRect in _label_backdrops:
+		if not is_instance_valid(pick):
+			continue
+		var pr: Rect2 = pick.get_global_rect()
+		rects.append(Rect2i(
+			int(floorf(pr.position.x)) - 1,
+			int(floorf(pr.position.y)) - 1,
+			int(ceilf(pr.size.x)) + 2,
+			int(ceilf(pr.size.y)) + 2,
+		))
+
 	for label: Label in _labels:
 		if not is_instance_valid(label):
 			continue
 		var r: Rect2 = label.get_global_rect()
+		# Label 不在容器里时 size 可能是 0，get_global_rect 会给出空矩形，
+		# 排除区就漏掉了整块文字。用最小尺寸兜底。
+		var minSize: Vector2 = label.get_minimum_size()
+		var size: Vector2 = Vector2(maxf(r.size.x, minSize.x), maxf(r.size.y, minSize.y))
 		# 外扩 2px，容纳抗锯齿与描边
 		rects.append(Rect2i(
 			int(floorf(r.position.x)) - 2,
 			int(floorf(r.position.y)) - 2,
-			int(ceilf(r.size.x)) + 4,
-			int(ceilf(r.size.y)) + 4,
+			int(ceilf(size.x)) + 4,
+			int(ceilf(size.y)) + 4,
 		))
 	return rects
 
