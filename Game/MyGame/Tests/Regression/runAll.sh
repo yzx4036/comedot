@@ -26,6 +26,8 @@ CHECK_GAMEPLAY_REL="Game/MyGame/Tests/Regression/CheckConfigDrivenGameplay.tscn"
 PROBE_SCENE_REL="Game/MyGame/Tests/Regression/ProbeDemoScene.gd"
 SHOT_REL="Game/MyGame/Tests/Regression/CaptureTestbedScreenshot.gd"
 LUT_CAPTURE_REL="Game/MyGame/Tests/Regression/CaptureLutCanvas.tscn"
+FX_CHECK_REL="Game/MyGame/Tests/Regression/CheckFxPlayback.tscn"
+LEVEL_SHADE_REL="Game/MyGame/Tests/Regression/CaptureLevelShade.tscn"
 
 # headless 脚本的兜底帧数：脚本自身出错时 quit() 到不了，靠它避免挂死
 QUIT_AFTER_CHECK=900
@@ -348,9 +350,10 @@ run_screenshot() {
 }
 
 
-## LutCanvas shader 的 A/B 验收：需要在窗口模式下渲染才拿得到画面
-run_lut_canvas() {
-	local name="CaptureLutCanvas"
+## 窗口模式的场景验收：需要真实渲染才能断言视觉
+## $1=名称  $2=场景路径  $3=结果标记（VERDICT / AUTO_RESULT）  $4=明细回显正则
+run_window_check() {
+	local name=$1 rel=$2 marker=$3 echo_pattern=$4
 	local log_file="$LOG_DIR/$name.log"
 
 	log_info "── ${name}（窗口模式）──────────────────"
@@ -369,7 +372,7 @@ run_lut_canvas() {
 	fi
 
 	: > "$log_file"
-	( cd "$PROJECT_ROOT" && exec "$GODOT" --path . "$LUT_CAPTURE_REL" \
+	( cd "$PROJECT_ROOT" && exec "$GODOT" --path . "$rel" \
 		--log-file "$log_file" >/dev/null 2>&1 ) &
 	local godot_pid=$!
 
@@ -378,29 +381,31 @@ run_lut_canvas() {
 	while [ "$waited" -lt 60 ]; do
 		sleep 1
 		waited=$((waited + 1))
-		grep -qE '^VERDICT ' "$log_file" 2>/dev/null && break
+		grep -qE "^${marker} (PASS|FAIL)" "$log_file" 2>/dev/null && break
 	done
 
 	kill "$godot_pid" 2>/dev/null || true
 	wait "$godot_pid" 2>/dev/null || true
 
-	local verdict
-	verdict=$(grep -E '^VERDICT ' "$log_file" 2>/dev/null | tail -1 | awk '{print $2}')
+	local verdict headline
+	verdict=$(grep -E "^${marker} (PASS|FAIL)" "$log_file" 2>/dev/null | tail -1 | awk '{print $2}')
+	headline=$(grep -E "^${marker} PASS" "$log_file" 2>/dev/null | tail -1 | sed "s/^${marker} PASS  *//")
 
-	# 数值明细一律回显，方便判断是"真过"还是"没跑到"
-	grep -E '^(RAMP|PALETTE_SIZE|PALETTE_CONTAINMENT|SWATCH|HUE_DRIFT|SAT_DELTA|REGION) ' "$log_file" 2>/dev/null \
-		| sed 's/^/       /'
+	# 明细一律回显，方便判断是"真过"还是"没跑到"
+	if [ -n "$echo_pattern" ]; then
+		grep -E "$echo_pattern" "$log_file" 2>/dev/null | sed 's/^/       /'
+	fi
 	grep -E '^  FAIL ' "$log_file" 2>/dev/null | sed 's/^/       /'
 
 	if [ "$verdict" = "PASS" ]; then
 		log_ok "$name PASS"
-		record "$name" "PASS" "39 色精确匹配"
+		record "$name" "PASS" "${headline:-通过}"
 		return 0
 	fi
 
 	if [ -z "$verdict" ]; then
-		log_warn "$name 未产生 VERDICT（可能没跑起来）"
-		record "$name" "WARN" "无 VERDICT"
+		log_warn "$name 未产生 ${marker}（可能没跑起来）"
+		record "$name" "WARN" "无 ${marker}"
 		return 0
 	fi
 
@@ -408,6 +413,26 @@ run_lut_canvas() {
 	FAILS=$((FAILS + 1))
 	record "$name" "FAIL" "见日志"
 	return 1
+}
+
+
+## LutCanvas 明暗 shader 的 A/B 验收
+run_lut_canvas() {
+	run_window_check "CaptureLutCanvas" "$LUT_CAPTURE_REL" "VERDICT" \
+		'^(RAMP|PALETTE_SIZE|PALETTE_CONTAINMENT|SWATCH|HUE_DRIFT|SAT_DELTA|REGION) '
+}
+
+
+## pixelfx 特效的 SpriteFrames 播放验收
+run_fx_playback() {
+	run_window_check "CheckFxPlayback" "$FX_CHECK_REL" "AUTO_RESULT" '^FX '
+}
+
+
+## LevelPlay 接入 LutCanvas 后的 A/B 验收
+run_level_shade() {
+	run_window_check "CaptureLevelShade" "$LEVEL_SHADE_REL" "VERDICT" \
+		'^(RAMP|LEVEL|DEFAULT_SHADE|PLAY_DIFF|LAYER_MARKER) '
 }
 
 # endregion
@@ -428,6 +453,8 @@ main() {
 	run_probe_smoke || true
 	run_screenshot || true
 	run_lut_canvas || true
+	run_fx_playback || true
+	run_level_shade || true
 
 	printf '\n════════════════════════════════════════════════════\n'
 	printf '汇总\n'

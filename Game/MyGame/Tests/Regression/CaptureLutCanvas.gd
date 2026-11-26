@@ -23,6 +23,7 @@ const BRIGHT_STEPS: float = 1.0
 
 var _testbed: Node2D
 var _failures: PackedStringArray = PackedStringArray()
+var _summary: String = ""
 
 
 func _ready() -> void:
@@ -31,9 +32,12 @@ func _ready() -> void:
 		get_tree().quit(2)
 		return
 	await _run()
-	print("VERDICT " + ("PASS" if _failures.is_empty() else "FAIL"))
-	for f: String in _failures:
-		print("  FAIL " + f)
+	if _failures.is_empty():
+		print("VERDICT PASS " + _summary)
+	else:
+		print("VERDICT FAIL")
+		for f: String in _failures:
+			print("  FAIL " + f)
 	get_tree().quit(0 if _failures.is_empty() else 1)
 
 
@@ -178,6 +182,7 @@ func _check_strip_exact(raw: Image, lut: Image, layout: Dictionary, palette: Arr
 		sat_delta_min = minf(sat_delta_min, got_lut.s - palette[i].s)
 
 	print("SWATCH %d/%d raw %d/%d lut" % [ok_lut, total, ok_raw, total])
+	_summary = "%d/%d 色精确匹配" % [ok_lut, total]
 	print("HUE_DRIFT_MAX %.1f°" % hue_drift_max)
 	print("SAT_DELTA_MIN %+.3f" % sat_delta_min)
 
