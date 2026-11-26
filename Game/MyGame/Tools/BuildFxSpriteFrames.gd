@@ -60,7 +60,17 @@ func _ready() -> void:
 
 func _build_one(name: String) -> void:
 	var json_path: String = SRC_DIR.path_join(name + ".json")
+
+	# 收敛版优先：`<name>_tone.png` 是 fx_tone.py 处理过的同尺寸图集
+	# （保留色相/明度/alpha，只压饱和度上限）。光晕型特效用它才不会在土色场景里过艳。
+	var tone_path: String = SRC_DIR.path_join(name + "_tone.png")
 	var png_path: String = SRC_DIR.path_join(name + ".png")
+	var used_tone: bool = false
+	if FileAccess.file_exists(tone_path):
+		var tone_img: Image = Image.load_from_file(tone_path)
+		if tone_img != null:
+			png_path = tone_path
+			used_tone = true
 
 	var text: String = FileAccess.get_file_as_string(json_path)
 	if text.is_empty():
@@ -144,8 +154,9 @@ func _build_one(name: String) -> void:
 		return
 
 	_built += 1
-	print("OK   %-14s 帧 %3d（裁掉尾部 %d）  fps %.0f  loop %s  → %s" % [
-		name, got_frames, dropped, fps, str(should_loop), out_path,
+	print("OK   %-14s 帧 %3d（裁掉尾部 %d）  fps %.0f  loop %-5s  源 %s  → %s" % [
+		name, got_frames, dropped, fps, str(should_loop),
+		"收敛版" if used_tone else "原图", out_path,
 	])
 
 

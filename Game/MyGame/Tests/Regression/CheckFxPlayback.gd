@@ -62,6 +62,7 @@ func _run() -> void:
 	# ── 静态判据 ──
 	for id: StringName in sprites:
 		_check_sprite_static(id, sprites[id] as AnimatedSprite2D)
+		_check_tone_source(id, sprites[id] as AnimatedSprite2D)
 
 	# ── 动态判据：采样看帧有没有推进 ──
 	# 先把所有特效拨回第 0 帧重新播：one-shot 可能在上面的等待里已经播完，
@@ -111,6 +112,29 @@ func _run() -> void:
 		return
 
 	await _check_visual(sprites)
+
+
+## 有收敛版的特效，SpriteFrames 必须真的指向收敛版图集。
+## 这条是为了钉住 BuildFxSpriteFrames 的"tone 优先"逻辑——
+## 逻辑写错时播放仍然正常，只有颜色悄悄变回原图，肉眼很难发现。
+func _check_tone_source(id: StringName, sprite: AnimatedSprite2D) -> void:
+	var tone_path: String = "res://Game/MyGame/Assets/Images/FX/%s_tone.png" % String(id)
+	if not FileAccess.file_exists(tone_path):
+		return
+	if sprite.sprite_frames == null:
+		return
+	var first: Texture2D = sprite.sprite_frames.get_frame_texture(&"default", 0)
+	if not (first is AtlasTexture):
+		return
+	var atlas_tex: AtlasTexture = first
+	if atlas_tex.atlas == null:
+		return
+	var actual: String = atlas_tex.atlas.resource_path
+	if actual != tone_path:
+		_failures.append("%s 存在收敛版但 SpriteFrames 指向了 %s，应为 %s"
+			% [String(id), actual, tone_path])
+	else:
+		print("TONE %-14s 使用收敛版" % String(id))
 
 
 ## 静态结构断言
