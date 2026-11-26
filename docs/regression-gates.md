@@ -46,6 +46,18 @@
 - 反向用例已验证：把 `center + floor(offset)` 改成 `center - ...`，
   断言报 `SWATCH 8/39` 并逐色列出期望值
 
+**改动像素的三分类**（有「越界放过」之后必须这么分，否则会误判）：
+
+| 类别 | 判据 | 说明 |
+|---|---|---|
+| 吸附 | 输出是调色板色 | 正常分档处理 |
+| 越界保留 | 输出与原色每通道差 ≤ 8/255 | 非调色板内容被放过，量化误差 |
+| 异常 | 两者都不是 | 必须为 0 |
+
+**测试隔离**：autoload 的 `GlobalUI` / `Debug` 会盖在测试台上、内容还可能随时间变化，
+混进 A/B 对比会制造假异常。截图前会把它们 `visible = false`，
+断言也只扫测试台自己的分区（`scene/strip/families/offpalette/text`），不全屏扫。
+
 ### `CheckFxPlayback`
 
 **验什么**：SpriteFrames 资源存在 ≠ 能播。图集切分、AtlasTexture 区域、
@@ -57,6 +69,11 @@ fps、纹理过滤任何一环错了，表现为空白、错位或糊边。
 
 **踩过的坑**：one-shot 特效（`loop=false`）播完会停在末帧，而末帧通常是
 淡出态、几乎全空。直接采会误判成"动画没动"，所以要**先拨回第 0 帧**。
+
+**收敛版断言**：凡是存在 `<name>_tone.png` 的特效，`SpriteFrames` 的
+`AtlasTexture.atlas.resource_path` 必须指向 `_tone.png`。
+这条防的是生成器的"tone 优先"逻辑写错——播放完全正常，只有颜色悄悄变回原图。
+反向用例：把 tres 里的路径改回原图即报红。
 
 ### `CaptureLevelShade`
 
