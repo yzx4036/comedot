@@ -35,6 +35,21 @@ uniform float mix_amount : hint_range(0.0, 1.0) = 1.0;
 // 设成 0.06：精确的调色板色（距离 0）照常处理，越界的内容原样放过。
 uniform float max_match_distance : hint_range(0.0, 0.5) = 0.06;
 
+// ── 光照驱动 ──
+//
+// 默认用像素自身亮度决定"该压还是该提"，本质是调色板空间里的对比度曲线：
+// 同一块地面无论在灯下还是墙角，得到的处理完全一样，没有体积感。
+//
+// 打开 use_light_mask 后改用光照贴图作为驱动信号：
+// 贴图是覆盖整个屏幕的灰度图（0=全黑 1=全亮），亮处提档、暗处压档。
+// 这样同一块颜色在不同光照位置会落到不同档位，才有真正的高低起伏。
+uniform bool use_light_mask = false;
+uniform sampler2D light_mask : hint_default_white, filter_linear, repeat_disable;
+// 光照强度的对比增强（1 = 直通）。调大可拉开光暗差别
+uniform float light_contrast : hint_range(0.25, 4.0) = 1.0;
+// 整体亮度偏移，用来补偿"场景整体偏暗"
+uniform float light_bias : hint_range(-0.5, 0.5) = 0.0;
+
 // 调试：0 正常；1 输出调色板索引灰度；2 输出档位灰度
 uniform int debug_mode : hint_range(0, 2) = 0;
 
@@ -84,9 +99,16 @@ void fragment() {
 	// 越界判定：非调色板内容（特效、任意 RGB、UI 残留）应原样输出，不揉进色板
 	bool isOutOfRange = max_match_distance > 0.0 && sqrt(best) > max_match_distance;
 
-	// L* 归一化到 0..1，再转成档位偏移
+	// 驱动信号 t（0=该压到最暗，1=该提到最亮）
+	// 光照模式下读光照贴图：同一块颜色在不同光照位置会落到不同档位
 	float L = lstar(src);
-	float t = clamp((L - dark_lstar) / max(bright_lstar - dark_lstar, 0.001), 0.0, 1.0);
+	float t;
+	if (use_light_mask) {
+		float lit = texture(light_mask, SCREEN_UV).r;
+		t = clamp((lit - 0.5) * light_contrast + 0.5 + light_bias, 0.0, 1.0);
+	} else {
+		t = clamp((L - dark_lstar) / max(bright_lstar - dark_lstar, 0.001), 0.0, 1.0);
+	}
 	float offset;
 	if (t < 0.5) {
 		offset = mix(-dark_steps, 0.0, t * 2.0);

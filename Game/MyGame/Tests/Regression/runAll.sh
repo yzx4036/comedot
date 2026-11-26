@@ -28,6 +28,7 @@ SHOT_REL="Game/MyGame/Tests/Regression/CaptureTestbedScreenshot.gd"
 LUT_CAPTURE_REL="Game/MyGame/Tests/Regression/CaptureLutCanvas.tscn"
 FX_CHECK_REL="Game/MyGame/Tests/Regression/CheckFxPlayback.tscn"
 LEVEL_SHADE_REL="Game/MyGame/Tests/Regression/CaptureLevelShade.tscn"
+LIGHTING_REL="Game/MyGame/Tests/Regression/CaptureLutLighting.tscn"
 
 # headless 脚本的兜底帧数：脚本自身出错时 quit() 到不了，靠它避免挂死
 QUIT_AFTER_CHECK=900
@@ -435,6 +436,13 @@ run_level_shade() {
 		'^(RAMP|LEVEL|DEFAULT_SHADE|PLAY_DIFF|LAYER_MARKER) '
 }
 
+
+## LutCanvas 光照驱动的验收：同色铺底在两种驱动下的差异
+run_lut_lighting() {
+	run_window_check "CaptureLutLighting" "$LIGHTING_REL" "VERDICT" \
+		'^(RAMP|OFF|SELF|LIGHT) '
+}
+
 # endregion
 
 
@@ -455,6 +463,7 @@ main() {
 	run_lut_canvas || true
 	run_fx_playback || true
 	run_level_shade || true
+	run_lut_lighting || true
 
 	printf '\n════════════════════════════════════════════════════\n'
 	printf '汇总\n'
