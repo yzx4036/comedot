@@ -35,6 +35,12 @@ const HUD_FALLBACK_HEIGHT: float = 140.0
 ## 敌人之间的固定间距（像素）。用固定值而不是按区域均分，横纵间距才一致
 const ENEMY_SPACING: Vector2 = Vector2(120.0, 110.0)
 
+## 敌人配色取自 north 调色板。不要用任意的 RGB：LutCanvas 只在调色板内做替换，
+## 调色板外的颜色会被吸附到最近色，反而看不出设计意图。
+const ENEMY_COLOR: String = "#d8a848"   # gold 族亮端
+const BOSS_COLOR: String = "#b85a44"    # 深红族亮端
+const HEALTH_FILL_COLOR: String = "#b85a44"  # 深红族亮端：在橄榄棕背景上对比明确
+
 
 #region 节点
 
@@ -46,6 +52,28 @@ const ENEMY_SPACING: Vector2 = Vector2(120.0, 110.0)
 @onready var resultLabel: Label = $UILayer/ResultPanel/ResultBox/ResultLabel
 @onready var backButton: Button = $UILayer/ResultPanel/ResultBox/BackButton
 @onready var enemyHost: Node2D = $EnemyHost
+@onready var shadeRect: ColorRect = $ShadeLayer/ShadeRect
+
+#endregion
+
+
+#region 明暗层
+
+## LutCanvas 挂在 layer 5：在游戏内容（layer 0）之上、UI（layer 10）之下。
+## UI 必须留在上面，否则抗锯齿文字会被量化成调色板色，小字边缘发硬。
+func setShadeEnabled(isEnabled: bool) -> void:
+	if shadeRect != null:
+		shadeRect.visible = isEnabled
+
+
+func isShadeEnabled() -> bool:
+	return shadeRect != null and shadeRect.visible
+
+
+func getShadeMaterial() -> ShaderMaterial:
+	if shadeRect == null:
+		return null
+	return shadeRect.material as ShaderMaterial
 
 #endregion
 
@@ -185,7 +213,7 @@ func _createEnemyNode() -> Area2D:
 
 	# 外观：矩形色块（boss 关用不同颜色）
 	var colorRect: ColorRect = ColorRect.new()
-	colorRect.color = Color(0.9, 0.35, 0.3) if level.isBossStage else Color(0.85, 0.55, 0.25)
+	colorRect.color = Color.html(BOSS_COLOR if level.isBossStage else ENEMY_COLOR)
 	colorRect.custom_minimum_size = Vector2(48, 48)
 	colorRect.position = Vector2(-24, -24)
 	colorRect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -199,6 +227,7 @@ func _createEnemyNode() -> Area2D:
 	enemy.add_child(collider)
 
 	# 血量条（默认样式在深色背景上对比度太低，给个明确的绿→红配色）
+	# 配色同样取自调色板：绿族最亮端在 LutCanvas 下会被钳制，颜色稳定不会被压暗
 	var healthBar: ProgressBar = ProgressBar.new()
 	healthBar.name = "HealthBar"
 	healthBar.custom_minimum_size = Vector2(48, 8)
@@ -209,16 +238,16 @@ func _createEnemyNode() -> Area2D:
 	healthBar.value = level.enemyHealth
 
 	var backgroundStyle: StyleBoxFlat = StyleBoxFlat.new()
-	backgroundStyle.bg_color = Color(0.12, 0.05, 0.06)
+	backgroundStyle.bg_color = Color.html("#36301f")
 	backgroundStyle.border_width_bottom = 1
 	backgroundStyle.border_width_top = 1
 	backgroundStyle.border_width_left = 1
 	backgroundStyle.border_width_right = 1
-	backgroundStyle.border_color = Color(0.25, 0.1, 0.12)
+	backgroundStyle.border_color = Color.html("#14140e")
 	healthBar.add_theme_stylebox_override("background", backgroundStyle)
 
 	var fillStyle: StyleBoxFlat = StyleBoxFlat.new()
-	fillStyle.bg_color = Color(0.35, 0.95, 0.45)
+	fillStyle.bg_color = Color.html(HEALTH_FILL_COLOR)
 	healthBar.add_theme_stylebox_override("fill", fillStyle)
 
 	enemy.add_child(healthBar)
@@ -366,6 +395,14 @@ func _updateTimeLabel() -> void:
 
 
 #region 信号回调
+
+func _unhandled_input(event: InputEvent) -> void:
+	# T 键开关明暗层，方便在真机上直接 A/B 对比
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_T:
+			setShadeEnabled(not isShadeEnabled())
+			Debug.printLog(str("明暗层: ", "开" if isShadeEnabled() else "关"), logName)
+
 
 func _onBackButton_pressed() -> void:
 	# 回关卡选择（不要用 GameState.restart()：那是回框架主菜单）
