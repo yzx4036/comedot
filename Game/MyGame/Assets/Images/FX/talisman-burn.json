@@ -1,0 +1,1359 @@
+{
+ "frames": [
+  {
+   "filename": "talisman-burn 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 1",
+   "frame": {
+    "x": 112,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 2",
+   "frame": {
+    "x": 224,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 3",
+   "frame": {
+    "x": 336,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 4",
+   "frame": {
+    "x": 448,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 5",
+   "frame": {
+    "x": 560,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 6",
+   "frame": {
+    "x": 672,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 7",
+   "frame": {
+    "x": 784,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 8",
+   "frame": {
+    "x": 896,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 9",
+   "frame": {
+    "x": 0,
+    "y": 128,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 10",
+   "frame": {
+    "x": 112,
+    "y": 128,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 11",
+   "frame": {
+    "x": 224,
+    "y": 128,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 12",
+   "frame": {
+    "x": 336,
+    "y": 128,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 13",
+   "frame": {
+    "x": 448,
+    "y": 128,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 14",
+   "frame": {
+    "x": 560,
+    "y": 128,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 15",
+   "frame": {
+    "x": 672,
+    "y": 128,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 16",
+   "frame": {
+    "x": 784,
+    "y": 128,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 17",
+   "frame": {
+    "x": 896,
+    "y": 128,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 18",
+   "frame": {
+    "x": 0,
+    "y": 256,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 19",
+   "frame": {
+    "x": 112,
+    "y": 256,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 20",
+   "frame": {
+    "x": 224,
+    "y": 256,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 21",
+   "frame": {
+    "x": 336,
+    "y": 256,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 22",
+   "frame": {
+    "x": 448,
+    "y": 256,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 23",
+   "frame": {
+    "x": 560,
+    "y": 256,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 24",
+   "frame": {
+    "x": 672,
+    "y": 256,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 25",
+   "frame": {
+    "x": 784,
+    "y": 256,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 26",
+   "frame": {
+    "x": 896,
+    "y": 256,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 27",
+   "frame": {
+    "x": 0,
+    "y": 384,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 28",
+   "frame": {
+    "x": 112,
+    "y": 384,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 29",
+   "frame": {
+    "x": 224,
+    "y": 384,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 30",
+   "frame": {
+    "x": 336,
+    "y": 384,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 31",
+   "frame": {
+    "x": 448,
+    "y": 384,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 32",
+   "frame": {
+    "x": 560,
+    "y": 384,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 33",
+   "frame": {
+    "x": 672,
+    "y": 384,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 34",
+   "frame": {
+    "x": 784,
+    "y": 384,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 35",
+   "frame": {
+    "x": 896,
+    "y": 384,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 36",
+   "frame": {
+    "x": 0,
+    "y": 512,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 37",
+   "frame": {
+    "x": 112,
+    "y": 512,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 38",
+   "frame": {
+    "x": 224,
+    "y": 512,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 39",
+   "frame": {
+    "x": 336,
+    "y": 512,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 40",
+   "frame": {
+    "x": 448,
+    "y": 512,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 41",
+   "frame": {
+    "x": 560,
+    "y": 512,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 42",
+   "frame": {
+    "x": 672,
+    "y": 512,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 43",
+   "frame": {
+    "x": 784,
+    "y": 512,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 44",
+   "frame": {
+    "x": 896,
+    "y": 512,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 45",
+   "frame": {
+    "x": 0,
+    "y": 640,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 46",
+   "frame": {
+    "x": 112,
+    "y": 640,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 47",
+   "frame": {
+    "x": 224,
+    "y": 640,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 48",
+   "frame": {
+    "x": 336,
+    "y": 640,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 49",
+   "frame": {
+    "x": 448,
+    "y": 640,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 50",
+   "frame": {
+    "x": 560,
+    "y": 640,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 51",
+   "frame": {
+    "x": 672,
+    "y": 640,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 52",
+   "frame": {
+    "x": 784,
+    "y": 640,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 53",
+   "frame": {
+    "x": 896,
+    "y": 640,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 54",
+   "frame": {
+    "x": 0,
+    "y": 768,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 55",
+   "frame": {
+    "x": 112,
+    "y": 768,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 56",
+   "frame": {
+    "x": 224,
+    "y": 768,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 57",
+   "frame": {
+    "x": 336,
+    "y": 768,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 58",
+   "frame": {
+    "x": 448,
+    "y": 768,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  },
+  {
+   "filename": "talisman-burn 59",
+   "frame": {
+    "x": 560,
+    "y": 768,
+    "w": 112,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 112,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 112,
+    "h": 128
+   },
+   "duration": 33
+  }
+ ],
+ "meta": {
+  "app": "https://github.com/patch-gg/pixelfx",
+  "version": "1",
+  "image": "talisman-burn.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1008,
+   "h": 896
+  },
+  "scale": "1",
+  "frameTags": [
+   {
+    "name": "talisman-burn",
+    "from": 0,
+    "to": 59,
+    "direction": "forward"
+   }
+  ],
+  "pixelfx": {
+   "id": "arcane/talisman-burn",
+   "name": "Talisman burn",
+   "fps": 30,
+   "loop": false,
+   "frames": 60,
+   "frameSize": [
+    112,
+    128
+   ],
+   "pivot": [
+    56,
+    108
+   ],
+   "columns": 9
+  }
+ }
+}
